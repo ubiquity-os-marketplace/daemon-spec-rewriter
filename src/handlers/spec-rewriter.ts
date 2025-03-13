@@ -2,7 +2,7 @@ import { encodeAsync, fetchIssueConversation } from "../helpers/conversation-par
 import { Context } from "../types";
 import { CallbackResult } from "../types/proxy";
 import { createSpecRewriteSysMsg, llmQuery } from "./prompt";
-import { TokenLimits } from "../types/llm";
+import { TokenLimits } from "../helpers/conversation-parsing";
 
 export const ADMIN_ROLES = ["admin", "owner", "billing_manager"];
 export const COLLABORATOR_ROLES = ["write", "member", "collaborator"];

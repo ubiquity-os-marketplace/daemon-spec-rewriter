@@ -1,7 +1,13 @@
 import { Context } from "../types/context";
-import { TokenLimits } from "../types/llm";
 import { encode } from "gpt-tokenizer";
 import { EncodeOptions } from "gpt-tokenizer/esm/GptEncoding";
+
+export type TokenLimits = {
+  modelMaxTokenLimit: number;
+  maxCompletionTokens: number;
+  runningTokenCount: number;
+  tokensRemaining: number;
+};
 
 export async function encodeAsync(text: string, options?: EncodeOptions): Promise<number[]> {
   return new Promise((resolve) => {
@@ -33,7 +39,7 @@ export async function fetchIssueConversation(context: Context, tokenLimits: Toke
     return conversation;
   }
 
-  // Fetch all comments for the issue
+  // Fetch all comments for the issue and remove issue body
   const comments = await context.octokit.rest.issues
     .listComments({
       owner,
@@ -41,9 +47,10 @@ export async function fetchIssueConversation(context: Context, tokenLimits: Toke
       issue_number: issueNumber,
       per_page: 100,
     })
-    .then((response) => response.data);
+    .then((response) => response.data.splice(1));
 
-  const sortedComments = comments.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  // get comments by newest first
+  const sortedComments = comments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   for (const comment of sortedComments) {
     const formattedComment = `${comment.user?.login}: ${comment.body || ""}`;
@@ -56,8 +63,8 @@ export async function fetchIssueConversation(context: Context, tokenLimits: Toke
       break;
     }
 
-    // Add comment to conversation and update token counts
-    conversation.push(formattedComment);
+    // Add comment at index 1 pushing existing comment forward and update token counts
+    conversation.splice(1, 0, formattedComment);
     tokenLimits.runningTokenCount += commentTokenCount;
     tokenLimits.tokensRemaining -= commentTokenCount;
   }
