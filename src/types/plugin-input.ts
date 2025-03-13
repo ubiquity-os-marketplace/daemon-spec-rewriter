@@ -7,10 +7,18 @@ import { StaticDecode, Type as T } from "@sinclair/typebox";
  * The kernel will extract those and pass them to the plugin,
  * which are built into the context object from setup().
  */
+
 export const pluginSettingsSchema = T.Object(
   {
-    configurableResponse: T.String({ default: "Hello, world!" }),
-    customStringsUrl: T.Optional(T.String()),
+    openRouterAiModel: T.String({ default: "anthropic/claude-3.5-sonnet" }),
+    openRouterBaseUrl: T.String({ default: "https://openrouter.ai/api/v1" }),
+    tokenLimit: T.Object(
+      {
+        context: T.Number({ default: 200000 }),
+        completion: T.Number({ default: 4096 }),
+      },
+      { default: {} }
+    ),
   },
   { default: {} }
 );

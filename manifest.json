@@ -1,25 +1,34 @@
 {
-  "name": "ts-template",
-  "description": "ts-template for UbiquityOS plugins.",
-  "ubiquity:listeners": ["issue_comment.created", "pull_request_review_comment.created"],
-  "commands": {
-    "hello": {
-      "ubiquity:example": "/hello argument",
-      "description": "Hello command with an argument."
-    }
-  },
+  "name": "daemon-spec-rewriter",
+  "description": "Rewrites specification of an issue based on gihtub conversation",
+  "ubiquity:listeners": ["issues.labeled", "issue_comment.created"],
+  "skipBotEvents": true,
   "configuration": {
     "default": {},
     "type": "object",
     "properties": {
-      "configurableResponse": {
-        "default": "Hello, world!",
+      "openRouterAiModel": {
+        "default": "anthropic/claude-3.5-sonnet",
         "type": "string"
       },
-      "customStringsUrl": {
+      "openRouterBaseUrl": {
+        "default": "https://openrouter.ai/api/v1",
         "type": "string"
+      },
+      "tokenLimit": {
+        "default": {},
+        "type": "object",
+        "properties": {
+          "context": {
+            "default": 200000,
+            "type": "number"
+          },
+          "completion": {
+            "default": 4096,
+            "type": "number"
+          }
+        }
       }
     }
-  },
-  "homepage_url": "https://your-plugin-name-development.ubiquity.workers.dev"
+  }
 }

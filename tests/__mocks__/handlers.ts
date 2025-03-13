@@ -1,28 +1,20 @@
 import { http, HttpResponse } from "msw";
 import { db } from "./db";
 import issueTemplate from "./issue-template";
+
 /**
  * Intercepts the routes and returns a custom payload
  */
 export const handlers = [
-  // get org repos
-  http.get("https://api.github.com/orgs/:org/repos", ({ params: { org } }: { params: { org: string } }) =>
-    HttpResponse.json(db.repo.findMany({ where: { owner: { login: { equals: org } } } }))
-  ),
-  // get org repo issues
-  http.get("https://api.github.com/repos/:owner/:repo/issues", ({ params: { owner, repo } }) =>
-    HttpResponse.json(db.issue.findMany({ where: { owner: { equals: owner as string }, repo: { equals: repo as string } } }))
-  ),
-  // get issue
+  //  GET https://api.github.com/repos/ubiquity/test-repo/issues/1
   http.get("https://api.github.com/repos/:owner/:repo/issues/:issue_number", ({ params: { owner, repo, issue_number: issueNumber } }) =>
     HttpResponse.json(
       db.issue.findFirst({ where: { owner: { equals: owner as string }, repo: { equals: repo as string }, number: { equals: Number(issueNumber) } } })
     )
   ),
-  // get user
-  http.get("https://api.github.com/users/:username", ({ params: { username } }) =>
-    HttpResponse.json(db.users.findFirst({ where: { login: { equals: username as string } } }))
-  ),
+
+  http.post("https://api.github.com/graphql", () => HttpResponse.json({})),
+
   // get repo
   http.get("https://api.github.com/repos/:owner/:repo", ({ params: { owner, repo } }: { params: { owner: string; repo: string } }) => {
     const item = db.repo.findFirst({ where: { name: { equals: repo }, owner: { login: { equals: owner } } } });
@@ -31,6 +23,10 @@ export const handlers = [
     }
     return HttpResponse.json(item);
   }),
+  // get issue
+  http.get("https://api.github.com/repos/:owner/:repo/issues", ({ params: { owner, repo } }: { params: { owner: string; repo: string } }) =>
+    HttpResponse.json(db.issue.findMany({ where: { owner: { equals: owner }, repo: { equals: repo } } }))
+  ),
   // create issue
   http.post("https://api.github.com/repos/:owner/:repo/issues", () => {
     const id = db.issue.count() + 1;
@@ -38,35 +34,83 @@ export const handlers = [
     db.issue.create(newItem);
     return HttpResponse.json(newItem);
   }),
-  // create comment
-  http.post("https://api.github.com/repos/:owner/:repo/issues/:issue_number/comments", async ({ params: { issue_number: issueNumber }, request }) => {
-    const { body } = await getValue(request.body);
-    const id = db.issueComments.count() + 1;
-    const newItem = { id, body, issue_number: Number(issueNumber), user: db.users.getAll()[0] };
-    db.issueComments.create(newItem);
-    return HttpResponse.json(newItem);
-  }),
-  // update comment
-  http.patch("https://api.github.com/repos/:owner/:repo/issues/comments/:id", async ({ params: { issue_number: issueNumber }, request }) => {
-    const { body } = await getValue(request.body);
-    const id = db.issueComments.count();
-    const newItem = { id, body, issue_number: Number(issueNumber), user: db.users.getAll()[0] };
-    db.issueComments.update({ where: { id: { equals: id } }, data: newItem });
-    return HttpResponse.json(newItem);
+  // get repo issues
+  http.get("https://api.github.com/orgs/:org/repos", ({ params: { org } }: { params: { org: string } }) =>
+    HttpResponse.json(db.repo.findMany({ where: { owner: { login: { equals: org } } } }))
+  ),
+  // add comment to issue
+  http.post("https://api.github.com/repos/:owner/:repo/issues/:issue_number/comments", ({ params: { owner, repo, issue_number: issueNumber } }) =>
+    HttpResponse.json({ owner, repo, issueNumber })
+  ),
+  // list pull requests
+  http.get("https://api.github.com/repos/:owner/:repo/pulls", ({ params: { owner, repo } }: { params: { owner: string; repo: string } }) =>
+    HttpResponse.json(db.pull.findMany({ where: { owner: { equals: owner }, repo: { equals: repo } } }))
+  ),
+  // update a pull request
+  http.patch("https://api.github.com/repos/:owner/:repo/pulls/:pull_number", ({ params: { owner, repo, pull_number: pullNumber } }) =>
+    HttpResponse.json({ owner, repo, pull_number: pullNumber })
+  ),
+
+  // list issue comments
+  http.get("https://api.github.com/repos/:owner/:repo/issues/:issue_number/comments", ({ params: { owner, repo, issue_number: issueNumber } }) =>
+    HttpResponse.json(
+      db.comments.findMany({ where: { owner: { equals: owner as string }, repo: { equals: repo as string }, issue_number: { equals: Number(issueNumber) } } })
+    )
+  ),
+  //list review comments
+  http.get("https://api.github.com/repos/:owner/:repo/pulls/:pull_number/comments", ({ params: { owner, repo, pull_number: pullNumber } }) =>
+    HttpResponse.json(
+      db.comments.findMany({ where: { owner: { equals: owner as string }, repo: { equals: repo as string }, issue_number: { equals: Number(pullNumber) } } })
+    )
+  ),
+  //  octokit.pulls.get
+  http.get("https://api.github.com/repos/:owner/:repo/pulls/:pull_number", ({ params: { owner, repo, pull_number: pullNumber } }) =>
+    HttpResponse.json(
+      db.pull.findFirst({ where: { owner: { equals: owner as string }, repo: { equals: repo as string }, number: { equals: Number(pullNumber) } } })
+    )
+  ),
+  http.get("https://api.github.com/repos/:owner/:repo/languages", () => HttpResponse.json(["JavaScript", "TypeScript", "Python"])),
+  http.get("https://api.github.com/repos/:owner/:repo/contents/:path", () =>
+    HttpResponse.json({
+      type: "file",
+      encoding: "base64",
+      size: 5362,
+      name: "README.md",
+      content: Buffer.from(JSON.stringify({ content: "This is a mock README file" })).toString("base64"),
+    })
+  ),
+  // [MSW] Warning: intercepted a request without a matching request handler:
+
+  // • GET https://api.github.com/repos/ubiquity/test-repo/pulls/3/files?per_page=100?per_page=100
+  http.get("https://api.github.com/repos/:owner/:repo/pulls/:pull_number/files", () =>
+    HttpResponse.json([
+      {
+        sha: "abc123",
+        filename: "file1.txt",
+        status: "modified",
+        additions: 10,
+        deletions: 5,
+        changes: 15,
+      },
+    ])
+  ),
+
+  http.get("https://api.github.com/repos/:owner/:repo/issues/:issue_number/events", () => {
+    HttpResponse.json([
+      {
+        id: 1,
+        event: "labeled",
+        created_at: "2024-01-01T00:00:00Z",
+        actor: {
+          login: "user1",
+          id: 1,
+          type: "User",
+        },
+        label: {
+          name: "bug",
+          color: "red",
+        },
+      },
+    ]);
   }),
 ];
-
-async function getValue(body: ReadableStream<Uint8Array> | null) {
-  if (body) {
-    const reader = body.getReader();
-    const streamResult = await reader.read();
-    if (!streamResult.done) {
-      const text = new TextDecoder().decode(streamResult.value);
-      try {
-        return JSON.parse(text);
-      } catch (error) {
-        console.error("Failed to parse body as JSON", error);
-      }
-    }
-  }
-}

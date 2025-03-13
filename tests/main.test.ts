@@ -1,162 +1,204 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { drop } from "@mswjs/data";
-import { CommentHandler } from "@ubiquity-os/plugin-sdk";
-import { customOctokit as Octokit } from "@ubiquity-os/plugin-sdk/octokit";
-import { Logs } from "@ubiquity-os/ubiquity-os-logger";
-import dotenv from "dotenv";
-import manifest from "../manifest.json";
-import { runPlugin } from "../src";
-import { Env } from "../src/types";
-import { Context } from "../src/types/context";
 import { db } from "./__mocks__/db";
-import { createComment, setupTests } from "./__mocks__/helpers";
 import { server } from "./__mocks__/node";
-import { STRINGS } from "./__mocks__/strings";
+import usersGet from "./__mocks__/users-get.json";
+import { describe, beforeAll, beforeEach, afterAll, afterEach, it, jest, expect } from "@jest/globals";
+import { Context, SupportedEvents } from "../src/types";
+import { drop } from "@mswjs/data";
+import issueTemplate from "./__mocks__/issue-template";
+import repoTemplate from "./__mocks__/repo-template";
+import { Octokit, RestEndpointMethodTypes } from "@octokit/rest";
+import { Logs } from "@ubiquity-os/ubiquity-os-logger";
+import { ADMIN_ROLES, COLLABORATOR_ROLES, SpecificationRewriter } from "../src/handlers/spec-rewriter";
 
-dotenv.config();
-const octokit = new Octokit();
+// Mock constants
+const MOCK_ISSUE_REWRITE_SPEC = "rewritten specification";
 
-beforeAll(() => {
-  server.listen();
-});
-afterEach(() => {
-  server.resetHandlers();
-  jest.clearAllMocks();
-});
-afterAll(() => server.close());
+describe("SpecificationRewriter", () => {
+  let specRewriter: SpecificationRewriter;
+  let ctx: Context;
 
-describe("Plugin tests", () => {
-  beforeEach(async () => {
+  beforeAll(async () => {
+    server.listen();
+  });
+
+  afterEach(() => {
     drop(db);
+    server.resetHandlers();
+  });
+
+  afterAll(() => server.close());
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
     await setupTests();
+    ctx = createContext();
+    specRewriter = new SpecificationRewriter(ctx);
   });
 
-  it("Should serve the manifest file", async () => {
-    const worker = (await import("../src/worker")).default;
-    const response = await worker.fetch(new Request("http://localhost/manifest.json"), {});
-    const content = await response.json();
-    expect(content).toEqual(manifest);
-  });
+  describe("getUserRole", () => {
+    it("should return organization role when available", async () => {
+      jest.spyOn(ctx.octokit.rest.orgs, "getMembershipForUser").mockResolvedValue({
+        data: { role: "ADMIN" },
+      } as unknown as RestEndpointMethodTypes["orgs"]["getMembershipForUser"]["response"]);
 
-  it("Should handle an issue comment event", async () => {
-    const { context, infoSpy, errorSpy, debugSpy, okSpy, verboseSpy } = createContext();
-
-    expect(context.eventName).toBe("issue_comment.created");
-    expect(context.payload.comment.body).toBe("/Hello");
-
-    await runPlugin(context);
-
-    expect(errorSpy).not.toHaveBeenCalled();
-    expect(debugSpy).toHaveBeenNthCalledWith(1, STRINGS.EXECUTING_HELLO_WORLD, {
-      caller: STRINGS.CALLER_LOGS_ANON,
-      sender: STRINGS.USER_1,
-      repo: STRINGS.TEST_REPO,
-      issueNumber: 1,
-      owner: STRINGS.USER_1,
+      const role = await specRewriter.getUserRole(ctx);
+      expect(role).toBe("admin");
     });
-    expect(infoSpy).toHaveBeenNthCalledWith(1, STRINGS.HELLO_WORLD);
-    expect(okSpy).toHaveBeenNthCalledWith(2, STRINGS.SUCCESSFULLY_CREATED_COMMENT);
-    expect(verboseSpy).toHaveBeenNthCalledWith(1, STRINGS.EXITING_HELLO_WORLD);
+
+    it("should fallback to repository role when org membership fails", async () => {
+      jest.spyOn(ctx.octokit.rest.orgs, "getMembershipForUser").mockRejectedValue(new Error("Not found"));
+
+      jest.spyOn(ctx.octokit.rest.repos, "getCollaboratorPermissionLevel").mockResolvedValue({
+        data: { role_name: "WRITE" },
+      } as unknown as RestEndpointMethodTypes["repos"]["getCollaboratorPermissionLevel"]["response"]);
+
+      const role = await specRewriter.getUserRole(ctx);
+      expect(role).toBe("write");
+    });
+
+    it("should return 'unknown' if both role retrieval methods fail", async () => {
+      jest.spyOn(ctx.octokit.rest.orgs, "getMembershipForUser").mockRejectedValue(new Error("Not found"));
+      jest.spyOn(ctx.octokit.rest.repos, "getCollaboratorPermissionLevel").mockRejectedValue(new Error("Permission error"));
+
+      const role = await specRewriter.getUserRole(ctx);
+      expect(role).toBe("unknown");
+    });
   });
 
-  it("Should respond with `Hello, World!` in response to /Hello", async () => {
-    const { context } = createContext();
-    await runPlugin(context);
-    const comments = db.issueComments.getAll();
-    expect(comments.length).toBe(2);
-    expect(comments[1].body).toMatch(STRINGS.HELLO_WORLD);
+  describe("canUserRewrite", () => {
+    it("should allow admin roles to rewrite", async () => {
+      for (const role of ADMIN_ROLES) {
+        jest.spyOn(specRewriter, "getUserRole").mockResolvedValue(role);
+        const canRewrite = await specRewriter.canUserRewrite(ctx);
+        expect(canRewrite).toBe(true);
+      }
+    });
+
+    it("should allow collaborator roles to rewrite", async () => {
+      for (const role of COLLABORATOR_ROLES) {
+        jest.spyOn(specRewriter, "getUserRole").mockResolvedValue(role);
+        const canRewrite = await specRewriter.canUserRewrite(ctx);
+        expect(canRewrite).toBe(true);
+      }
+    });
+
+    it("should deny unknown roles", async () => {
+      jest.spyOn(specRewriter, "getUserRole").mockResolvedValue("read");
+      const canRewrite = await specRewriter.canUserRewrite(ctx);
+      expect(canRewrite).toBe(false);
+    });
   });
 
-  it("Should respond with `Hello, Code Reviewers` in response to /Hello", async () => {
-    const { context } = createContext(STRINGS.CONFIGURABLE_RESPONSE);
-    await runPlugin(context);
-    const comments = db.issueComments.getAll();
-    expect(comments.length).toBe(2);
-    expect(comments[1].body).toMatch(STRINGS.CONFIGURABLE_RESPONSE);
+  describe("performSpecRewrite", () => {
+    it("should throw error if user lacks rewrite permissions", async () => {
+      jest.spyOn(specRewriter, "canUserRewrite").mockResolvedValue(false);
+
+      await expect(specRewriter.performSpecRewrite()).rejects.toMatchObject({
+        logMessage: {
+          raw: "User does not have sufficient permissions to rewrite spec",
+          level: "error",
+          type: "error",
+        },
+        metadata: {
+          caller: "SpecificationRewriter.performSpecRewrite",
+        },
+      });
+    });
+
+    it("should successfully rewrite specification", async () => {
+      jest.spyOn(specRewriter, "canUserRewrite").mockResolvedValue(true);
+      jest.spyOn(specRewriter, "rewriteSpec").mockResolvedValue(MOCK_ISSUE_REWRITE_SPEC);
+
+      const updateSpy = jest
+        .spyOn(ctx.octokit.rest.issues, "update")
+        .mockResolvedValue({} as unknown as RestEndpointMethodTypes["issues"]["update"]["response"]);
+
+      const result = await specRewriter.performSpecRewrite();
+
+      expect(updateSpy).toHaveBeenCalledWith({
+        owner: ctx.payload.repository.owner.login,
+        repo: ctx.payload.repository.name,
+        issue_number: ctx.payload.issue.number,
+        body: MOCK_ISSUE_REWRITE_SPEC,
+      });
+
+      expect(result).toEqual({ status: 200, reason: "Success" });
+    });
   });
 
-  it("Should not respond to a comment that doesn't contain /Hello", async () => {
-    const { context, errorSpy } = createContext(STRINGS.CONFIGURABLE_RESPONSE, STRINGS.INVALID_COMMAND);
-    await runPlugin(context);
-    const comments = db.issueComments.getAll();
+  describe("rewriteSpec", () => {
+    it("should create completion using github conversation", async () => {
+      jest.spyOn(ctx.adapters.openRouter.completions, "getModelMaxTokenLimit").mockReturnValue(50000);
+      jest.spyOn(ctx.adapters.openRouter.completions, "getModelMaxOutputLimit").mockReturnValue(5000);
 
-    expect(comments.length).toBe(1);
-    expect(errorSpy).toHaveBeenNthCalledWith(1, STRINGS.INVALID_USE_OF_SLASH_COMMAND, { caller: STRINGS.CALLER_LOGS_ANON, body: STRINGS.INVALID_COMMAND });
+      const mockConversation = ["user1: This is a demo spec for a demo task just perfect for testing."];
+
+      const createCompletionSpy = jest.spyOn(ctx.adapters.openRouter.completions, "createCompletion").mockResolvedValue(MOCK_ISSUE_REWRITE_SPEC);
+
+      const result = await specRewriter.rewriteSpec();
+
+      expect(createCompletionSpy).toHaveBeenCalledWith(
+        ctx.config.openRouterAiModel,
+        mockConversation,
+        ctx.env.UBIQUITY_OS_APP_NAME,
+        ctx.adapters.openRouter.completions.getModelMaxOutputLimit(ctx.config.openRouterAiModel)
+      );
+
+      expect(result).toBe(MOCK_ISSUE_REWRITE_SPEC);
+    });
   });
 });
 
-/**
- * The heart of each test. This function creates a context object with the necessary data for the plugin to run.
- *
- * So long as everything is defined correctly in the db (see `./__mocks__/helpers.ts: setupTests()`),
- * this function should be able to handle any event type and the conditions that come with it.
- *
- * Refactor according to your needs.
- */
-function createContext(
-  configurableResponse: string = "Hello, world!", // we pass the plugin configurable items here
-  commentBody: string = "/Hello",
-  repoId: number = 1,
-  payloadSenderId: number = 1,
-  commentId: number = 1,
-  issueOne: number = 1
-) {
-  const repo = db.repo.findFirst({ where: { id: { equals: repoId } } }) as unknown as Context["payload"]["repository"];
-  const sender = db.users.findFirst({ where: { id: { equals: payloadSenderId } } }) as unknown as Context["payload"]["sender"];
-  const issue1 = db.issue.findFirst({ where: { id: { equals: issueOne } } }) as unknown as Context<"issue_comment.created">["payload"]["issue"];
-
-  createComment(commentBody, commentId); // create it first then pull it from the DB and feed it to _createContext
-  const comment = db.issueComments.findFirst({ where: { id: { equals: commentId } } }) as unknown as Context["payload"]["comment"];
-
-  const context = createContextInner(repo, sender, issue1, comment, configurableResponse);
-  const infoSpy = jest.spyOn(context.logger, "info");
-  const errorSpy = jest.spyOn(context.logger, "error");
-  const debugSpy = jest.spyOn(context.logger, "debug");
-  const okSpy = jest.spyOn(context.logger, "ok");
-  const verboseSpy = jest.spyOn(context.logger, "verbose");
-
-  return {
-    context,
-    infoSpy,
-    errorSpy,
-    debugSpy,
-    okSpy,
-    verboseSpy,
-    repo,
-    issue1,
-  };
+async function setupTests() {
+  // Setup test data
+  for (const item of usersGet) {
+    db.users.create(item);
+  }
+  db.repo.create({
+    ...repoTemplate,
+  });
+  db.issue.create({
+    ...issueTemplate,
+  });
 }
 
-/**
- * Creates the context object central to the plugin.
- *
- * This should represent the active `SupportedEvents` payload for any given event.
- */
-function createContextInner(
-  repo: Context["payload"]["repository"],
-  sender: Context["payload"]["sender"],
-  issue: Context<"issue_comment.created">["payload"]["issue"],
-  comment: Context["payload"]["comment"],
-  configurableResponse: string
-) {
+function createContext() {
+  const logger = new Logs("debug");
+  const user = db.users.findFirst({ where: { id: { equals: 1 } } });
   return {
-    eventName: "issue_comment.created",
-    command: null,
     payload: {
-      action: "created",
-      sender: sender,
-      repository: repo,
-      issue: issue,
-      comment: comment,
-      installation: { id: 1 } as Context["payload"]["installation"],
-      organization: { login: STRINGS.USER_1 } as Context["payload"]["organization"],
+      issue: db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Context["payload"]["issue"],
+      sender: user,
+      repository: db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Context["payload"]["repository"],
+      action: "created" as string,
+      installation: { id: 1 } as unknown as Context["payload"]["installation"],
+      organization: { login: "ubiquity" } as unknown as Context["payload"]["organization"],
+      number: 1,
     },
-    logger: new Logs("debug"),
+    command: {
+      name: "rewrite",
+      parameters: null,
+    },
+    owner: "ubiquity",
+    repo: "test-repo",
+    logger: logger,
     config: {
-      configurableResponse,
+      openRouterAiModel: "test-model",
     },
-    env: {} as Env,
-    octokit: octokit,
-    commentHandler: new CommentHandler(),
+    env: {
+      UBIQUITY_OS_APP_NAME: "UbiquityOS",
+      OPENROUTER_API_KEY: "test",
+    },
+    adapters: {
+      openRouter: {
+        completions: {
+          getModelMaxTokenLimit: () => 50000,
+          getModelMaxOutputLimit: () => 50000,
+          createCompletion: async (): Promise<string> => MOCK_ISSUE_REWRITE_SPEC,
+        },
+      },
+    },
+    octokit: new Octokit(),
+    eventName: "issue_comment.created" as SupportedEvents,
   } as unknown as Context;
 }
