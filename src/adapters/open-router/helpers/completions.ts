@@ -25,7 +25,7 @@ export class OpenRouterCompletion extends SuperOpenRouter {
   }
 
   async createCompletion(model: string, githubConversation: string[], botName: string, maxTokens: number): Promise<string> {
-    const sysMsg = createSpecRewriteSysMsg(githubConversation, botName);
+    const sysMsg = createSpecRewriteSysMsg(githubConversation, botName, this.context.payload.issue.user?.login);
 
     this.context.logger.debug(`System message: ${sysMsg}`);
 
@@ -44,7 +44,6 @@ export class OpenRouterCompletion extends SuperOpenRouter {
       max_tokens: maxTokens,
       temperature: 0,
     })) as OpenAI.Chat.Completions.ChatCompletion & {
-      _request_id?: string | null;
       error: { message: string; code: number; metadata: object } | undefined;
     };
 
@@ -58,10 +57,10 @@ export class OpenRouterCompletion extends SuperOpenRouter {
     }
 
     const inputTokens = res.usage?.prompt_tokens;
-    const outputTokens = res.usage?.completion_tokens;
+    const completionTokens = res.usage?.completion_tokens;
 
-    if (inputTokens && outputTokens) {
-      this.context.logger.info(`Number of tokens used: ${inputTokens + outputTokens}`);
+    if (inputTokens && completionTokens) {
+      this.context.logger.info(`Number of tokens used: ${inputTokens + completionTokens}`);
     } else {
       this.context.logger.info(`LLM did not output usage statistics`);
     }

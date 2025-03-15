@@ -12,7 +12,7 @@ import { LOG_LEVEL } from "@ubiquity-os/ubiquity-os-logger";
 export const envSchema = T.Object({
   OPENROUTER_API_KEY: T.String(),
   UBIQUITY_OS_APP_NAME: T.String({ default: "UbiquityOS" }),
-  KERNEL_PUBLIC_KEY: T.Optional(T.String()),
+  KERNEL_PUBLIC_KEY: T.String({ default: "" }),
   LOG_LEVEL: T.Enum(LOG_LEVEL, { default: LOG_LEVEL.INFO }),
 });
 

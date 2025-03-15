@@ -1,14 +1,15 @@
-import { encodeAsync, fetchIssueConversation } from "../helpers/conversation-parsing";
+import { fetchIssueConversation } from "../helpers/conversation-parsing";
 import { Context } from "../types";
 import { CallbackResult } from "../types/proxy";
 import { createSpecRewriteSysMsg, llmQuery } from "./prompt";
 import { TokenLimits } from "../helpers/conversation-parsing";
+import { encode } from "gpt-tokenizer";
 
 export const ADMIN_ROLES = ["admin", "owner", "billing_manager"];
 export const COLLABORATOR_ROLES = ["write", "member", "collaborator"];
 
 export class SpecificationRewriter {
-  readonly context: Context;
+  protected readonly context: Context;
 
   constructor(context: Context) {
     this.context = context;
@@ -40,13 +41,12 @@ export class SpecificationRewriter {
       },
     } = this.context;
 
-    const sysPromptTokenCount = (await encodeAsync(createSpecRewriteSysMsg([], UBIQUITY_OS_APP_NAME))).length;
-    const queryTokenCount = (await encodeAsync(llmQuery)).length;
+    const sysPromptTokenCount = encode(createSpecRewriteSysMsg([], UBIQUITY_OS_APP_NAME, "")).length;
+    const queryTokenCount = encode(llmQuery).length;
 
     const tokenLimits: TokenLimits = {
       modelMaxTokenLimit: this.context.adapters.openRouter.completions.getModelMaxTokenLimit(this.context.config.openRouterAiModel),
       maxCompletionTokens: this.context.adapters.openRouter.completions.getModelMaxOutputLimit(this.context.config.openRouterAiModel),
-      runningTokenCount: 0,
       tokensRemaining: 0,
     };
 
@@ -116,10 +116,10 @@ export class SpecificationRewriter {
 }
 
 export async function timeLabelChange(context: Context<"issues.labeled">): Promise<CallbackResult> {
-  if (context.payload.label?.name.toLowerCase().includes("Time")) {
+  if (context.payload.label?.name.toLowerCase().startsWith("time")) {
     const specificationRewriter = new SpecificationRewriter(context);
     return specificationRewriter.performSpecRewrite();
   } else {
-    return { status: 200, reason: "Skipping spec rewrite because time label wasn't changed" };
+    return { status: 204, reason: "Skipping spec rewrite because time label wasn't changed" };
   }
 }

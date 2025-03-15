@@ -3,6 +3,16 @@
   "description": "Rewrites specification of an issue based on gihtub conversation",
   "ubiquity:listeners": ["issues.labeled", "issue_comment.created"],
   "skipBotEvents": true,
+  "commands": {
+    "rewrite": {
+      "ubiquity:example": "/rewrite",
+      "description": "Rewrites specification of an issue based on gihtub conversation",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  },
   "configuration": {
     "default": {},
     "type": "object",

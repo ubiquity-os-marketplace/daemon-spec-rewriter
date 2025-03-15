@@ -9,13 +9,8 @@ Consider the following guidelines:
 7. Output ONLY the rewritten specification without additional commentary
 Output the rewritten specification in markdown format.`;
 
-export function createSpecRewriteSysMsg(githubConversation: string[], botName: string) {
-  console.error(githubConversation);
+export function createSpecRewriteSysMsg(githubConversation: string[], botName: string, issueAuthor?: string) {
   // Extract the issue author from the first comment
-  const firstComment = githubConversation[0];
-  const authorMatch = firstComment ? firstComment.match(/^([^:]+):/) : null;
-  const issueAuthor = authorMatch ? authorMatch[1].trim() : null;
-
   return [
     "You are tasked with rewriting GitHub issue specifications based on the entire conversation history. Your goal is to create a clear, comprehensive specification that incorporates all relevant information from the discussion.",
     "\n",
