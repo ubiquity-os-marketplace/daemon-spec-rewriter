@@ -7,7 +7,7 @@
     "node_modules",
     "**/*.log",
     "./src/adapters/supabase/**/**.ts",
-    p"dist/**"
+    "dist/**"
   ],
   "useGitignore": true,
   "language": "en",
