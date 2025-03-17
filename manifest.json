@@ -6,7 +6,7 @@
   "commands": {
     "rewrite": {
       "ubiquity:example": "/rewrite",
-      "description": "Rewrites specification of an issue based on gihtub conversation",
+      "description": "Rewrites the specification of an issue based on GitHub's issue conversation",
       "parameters": {
         "type": "object",
         "properties": {}
