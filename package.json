@@ -4,7 +4,7 @@
   "description": "Rewrites the specification of an issue based on the GitHub conversation",
   "author": "Ubiquity DAO",
   "license": "MIT",
-  "main": "src/main .ts",
+  "main": "src/main.ts",
   "engines": {
     "node": ">=20.10.0"
   },
