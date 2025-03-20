@@ -9,11 +9,14 @@ import { LOG_LEVEL } from "@ubiquity-os/ubiquity-os-logger";
  * taken from either `dev.vars` or repository secrets.
  * They are used with `process.env` but are type-safe.
  */
-export const envSchema = T.Object({
-  OPENROUTER_API_KEY: T.String(),
-  UBIQUITY_OS_APP_NAME: T.String({ default: "UbiquityOS" }),
-  KERNEL_PUBLIC_KEY: T.String({ default: "" }),
-  LOG_LEVEL: T.Enum(LOG_LEVEL, { default: LOG_LEVEL.INFO }),
-});
+export const envSchema = T.Object(
+  {
+    OPENROUTER_API_KEY: T.String(),
+    UBIQUITY_OS_APP_NAME: T.String({ default: "UbiquityOS" }),
+    KERNEL_PUBLIC_KEY: T.String({ default: "" }),
+    LOG_LEVEL: T.Enum(LOG_LEVEL, { default: LOG_LEVEL.INFO }),
+  },
+  { default: {} }
+);
 
 export type Env = StaticDecode<typeof envSchema>;
