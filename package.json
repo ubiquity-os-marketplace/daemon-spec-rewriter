@@ -1,7 +1,7 @@
 {
   "name": "@ubiquity-os/daemon-spec-rewriter",
   "version": "1.0.0",
-  "description": "Rewrites specification of an issue based on Gihtub conversation",
+  "description": "Rewrites the specification of an issue based on the GitHub conversation",
   "author": "Ubiquity DAO",
   "license": "MIT",
   "main": "src/main .ts",
