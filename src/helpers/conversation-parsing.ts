@@ -1,5 +1,5 @@
 import { Context } from "../types/context";
-import { encode } from "gpt-tokenizer";
+import { countTokens } from "@anthropic-ai/tokenizer";
 
 export type TokenLimits = {
   modelMaxTokenLimit: number;
@@ -21,7 +21,7 @@ export async function fetchIssueConversation(context: Context, tokenLimits: Toke
   const issueBody = `${issue.user?.login}: ${issue.body || "No description provided"}`;
   conversation.push(issueBody);
 
-  const issueBodyTokenCount = encode(issueBody).length;
+  const issueBodyTokenCount = countTokens(issueBody);
   tokenLimits.tokensRemaining -= issueBodyTokenCount;
 
   if (tokenLimits.tokensRemaining <= 0) {
@@ -45,7 +45,7 @@ export async function fetchIssueConversation(context: Context, tokenLimits: Toke
   for (const comment of sortedComments) {
     const formattedComment = `${comment.user?.login}: ${comment.body}`;
 
-    const commentTokenCount = encode(formattedComment).length;
+    const commentTokenCount = countTokens(formattedComment);
 
     // Check if adding this comment would exceed token limit
     if (tokenLimits.tokensRemaining - commentTokenCount <= 0) {

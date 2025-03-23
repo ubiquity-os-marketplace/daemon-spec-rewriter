@@ -27,11 +27,11 @@
     "open-source"
   ],
   "dependencies": {
+    "@anthropic-ai/tokenizer": "^0.0.4",
     "@sinclair/typebox": "0.34.3",
     "@ubiquity-os/plugin-sdk": "^3.0.0",
     "@ubiquity-os/ubiquity-os-logger": "^1.4.0",
     "dotenv": "^16.4.5",
-    "gpt-tokenizer": "^2.5.1",
     "openai": "^4.77.3"
   },
   "devDependencies": {

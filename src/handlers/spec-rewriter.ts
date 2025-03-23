@@ -3,7 +3,7 @@ import { Context } from "../types";
 import { CallbackResult } from "../types/proxy";
 import { createSpecRewriteSysMsg, llmQuery } from "./prompt";
 import { TokenLimits } from "../helpers/conversation-parsing";
-import { encode } from "gpt-tokenizer";
+import { countTokens } from "@anthropic-ai/tokenizer";
 
 export const ADMIN_ROLES = ["admin", "owner", "billing_manager"];
 export const COLLABORATOR_ROLES = ["write", "member", "collaborator"];
@@ -41,8 +41,8 @@ export class SpecificationRewriter {
       },
     } = this.context;
 
-    const sysPromptTokenCount = encode(createSpecRewriteSysMsg([], UBIQUITY_OS_APP_NAME, "")).length;
-    const queryTokenCount = encode(llmQuery).length;
+    const sysPromptTokenCount = countTokens(createSpecRewriteSysMsg([], UBIQUITY_OS_APP_NAME, ""));
+    const queryTokenCount = countTokens(llmQuery);
 
     const tokenLimits: TokenLimits = {
       modelMaxTokenLimit: this.context.adapters.openRouter.completions.getModelMaxTokenLimit(this.context.config.openRouterAiModel),
