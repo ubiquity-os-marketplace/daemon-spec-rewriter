@@ -3,25 +3,39 @@ import { Context } from "../../../types";
 import { SuperOpenRouter } from "./open-router";
 import OpenAI from "openai";
 
+interface Model {
+  id: string;
+  name: string;
+  created: number;
+  description: string;
+  context_length: number;
+  architecture: object;
+  pricing: object;
+  top_provider: {
+    context_length: number;
+    max_completion_tokens: number;
+    is_moderated: boolean;
+  };
+  per_request_limits: object;
+}
+
 export class OpenRouterCompletion extends SuperOpenRouter {
   constructor(client: OpenAI, context: Context) {
     super(client, context);
   }
 
-  getModelMaxTokenLimit(model: string): number {
-    const tokenLimit = this.context.config.tokenLimit.context;
-    if (!tokenLimit) {
-      throw this.context.logger.error(`The token limits for configured model ${model} was not found`);
-    }
-    return tokenLimit;
+  async getModelMaxTokenLimit(): Promise<number | null> {
+    const response = await fetch("https://openrouter.ai/api/v1/models");
+    const data = (await response.json()) as { data: Model[] };
+    const model = data["data"].find((m: Model) => m.id === this.context.config.openRouterAiModel);
+    return model ? model.top_provider.context_length : null;
   }
 
-  getModelMaxOutputLimit(model: string): number {
-    const tokenLimit = this.context.config.tokenLimit.completion;
-    if (!tokenLimit) {
-      throw this.context.logger.error(`The token limits for configured model ${model} was not found`);
-    }
-    return tokenLimit;
+  async getModelMaxOutputLimit(): Promise<number | null> {
+    const response = await fetch("https://openrouter.ai/api/v1/models");
+    const data = (await response.json()) as { data: Model[] };
+    const model = data["data"].find((m: Model) => m.id === this.context.config.openRouterAiModel);
+    return model ? model.top_provider.max_completion_tokens : null;
   }
 
   async createCompletion(model: string, githubConversation: string[], botName: string, maxTokens: number): Promise<string> {

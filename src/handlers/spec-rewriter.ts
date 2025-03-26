@@ -44,9 +44,15 @@ export class SpecificationRewriter {
     const sysPromptTokenCount = countTokens(createSpecRewriteSysMsg([], UBIQUITY_OS_APP_NAME, ""));
     const queryTokenCount = countTokens(llmQuery);
 
+    const modelMaxTokenLimit = await this.context.adapters.openRouter.completions.getModelMaxTokenLimit();
+    const maxCompletionTokens = await this.context.adapters.openRouter.completions.getModelMaxOutputLimit();
+
+    if (!modelMaxTokenLimit || !maxCompletionTokens) {
+      throw this.context.logger.error(`The token limits for configured model ${this.context.config.openRouterAiModel} were not found`);
+    }
     const tokenLimits: TokenLimits = {
-      modelMaxTokenLimit: this.context.adapters.openRouter.completions.getModelMaxTokenLimit(this.context.config.openRouterAiModel),
-      maxCompletionTokens: this.context.adapters.openRouter.completions.getModelMaxOutputLimit(this.context.config.openRouterAiModel),
+      modelMaxTokenLimit,
+      maxCompletionTokens,
       tokensRemaining: 0,
     };
 
@@ -54,12 +60,7 @@ export class SpecificationRewriter {
     tokenLimits.tokensRemaining = tokenLimits.modelMaxTokenLimit - tokenLimits.maxCompletionTokens - sysPromptTokenCount - queryTokenCount;
     const githubConversation = await fetchIssueConversation(this.context, tokenLimits);
 
-    return await completions.createCompletion(
-      openRouterAiModel,
-      githubConversation,
-      UBIQUITY_OS_APP_NAME,
-      completions.getModelMaxOutputLimit(openRouterAiModel)
-    );
+    return await completions.createCompletion(openRouterAiModel, githubConversation, UBIQUITY_OS_APP_NAME, modelMaxTokenLimit);
   }
 
   async getUserRole(context: Context) {
