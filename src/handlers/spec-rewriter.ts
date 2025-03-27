@@ -20,8 +20,10 @@ export class SpecificationRewriter {
       throw this.context.logger.error("User does not have sufficient permissions to rewrite spec");
     }
 
-    if (this.context.command?.name !== "rewrite") {
-      throw this.context.logger.error("Command is not /rewrite, Aborting!");
+    if (this._isIssueCommentEvent(this.context)) {
+      if (this.context.payload.comment.body !== "/rewrite") {
+        throw this.context.logger.error("Command is not /rewrite, Aborting!");
+      }
     }
 
     const rewrittenSpec = await this.rewriteSpec();
@@ -64,7 +66,7 @@ export class SpecificationRewriter {
     tokenLimits.tokensRemaining = tokenLimits.modelMaxTokenLimit - tokenLimits.maxCompletionTokens - sysPromptTokenCount - queryTokenCount;
     const githubConversation = await fetchIssueConversation(this.context, tokenLimits);
 
-    return await completions.createCompletion(openRouterAiModel, githubConversation, UBIQUITY_OS_APP_NAME, modelMaxTokenLimit);
+    return await completions.createCompletion(openRouterAiModel, githubConversation, UBIQUITY_OS_APP_NAME, maxCompletionTokens);
   }
 
   async getUserRole(context: Context) {
@@ -117,6 +119,10 @@ export class SpecificationRewriter {
   async canUserRewrite(context: Context) {
     const userRole = await this.getUserRole(context);
     return ADMIN_ROLES.includes(userRole.toLowerCase()) || COLLABORATOR_ROLES.includes(userRole.toLowerCase());
+  }
+
+  private _isIssueCommentEvent(context: Context<"issue_comment.created" | "issues.labeled">): context is Context<"issue_comment.created"> {
+    return "comment" in context.payload;
   }
 }
 
