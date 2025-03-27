@@ -1,31 +1,63 @@
-export const llmQuery = `Rewrite the issue specification based on the provided GitHub conversation. The conversation is ordered chronologically, with the first comment being the original issue body.
-Consider the following guidelines:
-1. Give highest priority to the original issue body (first comment), as it represents the issue author's initial intent
-2. Give additional weight to any messages from the issue author (the person who wrote the first comment)
-3. Incorporate clarifications and additional requirements from subsequent comments
-4. Resolve any contradictions by favoring more recent comments, especially those from the issue author
-5. Remove any ambiguities in the original specification
-6. Format the specification in a clear, structured manner
-7. Output ONLY the rewritten specification without additional commentary
-Output the rewritten specification in markdown format.`;
+export const llmQuery = `Rewrite the issue specification based on the provided GitHub conversation. 
+
+Your task is to:
+1. Analyze the entire conversation chronologically
+2. Extract and synthesize the most important information
+3. Create a clear, comprehensive specification
+
+Detailed Guidelines:
+- Prioritize the original issue body (first comment) as the primary source of intent
+- Give extra weight to comments from the original issue author
+- Incorporate substantive clarifications and additional requirements from subsequent comments
+- Resolve contradictions by:
+  a) Favoring more recent comments
+  b) Prioritizing comments from the issue author
+  c) Seeking the most precise and actionable formulation
+- Eliminate ambiguities and vague language
+- Ensure the specification is:
+  * Specific
+  * Measurable
+  * Achievable
+  * Relevant
+  * Time-bound (SMART criteria)
+
+Output Requirements:
+- Use markdown format
+- Include clear sections (e.g., Overview, Objectives, Detailed Requirements, Acceptance Criteria)
+- Provide context for any significant changes from the original specification
+- If insufficient information is present, clearly state the need for additional clarification
+
+Constraints:
+- If no meaningful specification can be derived, make minimal changes
+- Do not add fictional or speculative requirements
+- Maintain the original intent of the issue as closely as possible`;
 
 export function createSpecRewriteSysMsg(githubConversation: string[], botName: string, issueAuthor?: string) {
-  // Extract the issue author from the first comment
   return [
-    "You are tasked with rewriting GitHub issue specifications based on the entire conversation history. Your goal is to create a clear, comprehensive specification that incorporates all relevant information from the discussion.",
+    "Advanced GitHub Issue Specification Rewriter",
     "\n",
-    "Guidelines:",
-    "- The first comment in the conversation is the original issue body and should be given the highest weight",
-    `- Comments from the issue author (${issueAuthor}) should be given additional weight`,
-    "- Subsequent comments may contain clarifications, additional requirements, or modifications",
-    "- When conflicts exist between comments, generally favor more recent information, especially from the issue author",
-    "- Remove ambiguities and vague requirements",
-    "- Organize the specification in a logical structure with clear sections",
-    "- Include acceptance criteria when possible",
+    "Core Objectives:",
+    "- Transform raw GitHub conversation into a precise, actionable specification",
+    "- Synthesize information from multiple comments",
+    "- Ensure clarity, completeness, and implementability",
     "\n",
-    `Your name is: ${botName}`,
+    "Sophisticated Analysis Guidelines:",
+    `- Primary source of intent: Issue body by ${issueAuthor}`,
+    `- Enhanced context weighting for comments by ${issueAuthor}`,
+    `- Intelligent conflict resolution using:
+      * Chronological progression
+      * Author credibility
+      * Specificity of requirements`,
+    "- Comprehensive requirement synthesis",
+    "- Removal of ambiguities and speculative elements",
     "\n",
-    "GitHub Conversation (in chronological order):",
+    `Assistant Persona: ${botName}`,
+    "\n",
+    "GitHub Conversation Transcript:",
     githubConversation.join("\n"),
+    "\n",
+    "Special Instructions:",
+    "- Produce a SMART (Specific, Measurable, Achievable, Relevant, Time-bound) specification",
+    "- If insufficient information is present, generate a structured request for clarification",
   ].join("\n");
 }
