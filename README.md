@@ -17,7 +17,7 @@ With its huge context window, we are able to feed the entire issue conversation 
 ```yml
 plugins:
   - uses:
-      - plugin: http://localhost:4000
+      - plugin: ubiquity-os-marketplace/daemon-spec-rewriter
         with:
           openRouterAiModel: "" # Optional - defaults to "anthropic/claude-3.7-sonnet"
           openRouterBaseUrl: "" # Optional - defaults to Open Router's API endpoint

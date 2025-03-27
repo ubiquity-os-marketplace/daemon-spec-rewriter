@@ -18,7 +18,7 @@
     "type": "object",
     "properties": {
       "openRouterAiModel": {
-        "default": "anthropic/3.7-sonnet",
+        "default": "anthropic/claude-3.7-sonnet",
         "type": "string"
       },
       "openRouterBaseUrl": {

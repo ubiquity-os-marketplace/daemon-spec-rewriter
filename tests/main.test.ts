@@ -128,8 +128,8 @@ describe("SpecificationRewriter", () => {
 
   describe("rewriteSpec", () => {
     it("should create completion using github conversation", async () => {
-      jest.spyOn(ctx.adapters.openRouter.completions, "getModelMaxTokenLimit").mockReturnValue(50000);
-      jest.spyOn(ctx.adapters.openRouter.completions, "getModelMaxOutputLimit").mockReturnValue(5000);
+      jest.spyOn(ctx.adapters.openRouter.completions, "getModelMaxTokenLimit").mockReturnValue(Promise.resolve(50000));
+      jest.spyOn(ctx.adapters.openRouter.completions, "getModelMaxOutputLimit").mockReturnValue(Promise.resolve(5000));
 
       const mockConversation = ["user1: This is a demo spec for a demo task just perfect for testing."];
 
@@ -141,7 +141,7 @@ describe("SpecificationRewriter", () => {
         ctx.config.openRouterAiModel,
         mockConversation,
         ctx.env.UBIQUITY_OS_APP_NAME,
-        ctx.adapters.openRouter.completions.getModelMaxOutputLimit(ctx.config.openRouterAiModel)
+        await ctx.adapters.openRouter.completions.getModelMaxTokenLimit()
       );
 
       expect(result).toBe(MOCK_ISSUE_REWRITE_SPEC);

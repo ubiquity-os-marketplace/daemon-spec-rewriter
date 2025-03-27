@@ -4,7 +4,7 @@
   "description": "Rewrites the specification of an issue based on the GitHub conversation",
   "author": "Ubiquity DAO",
   "license": "MIT",
-  "main": "src/main.ts",
+  "main": "src/worker.ts",
   "engines": {
     "node": ">=20.10.0"
   },
@@ -65,7 +65,7 @@
     "ts-node": "^10.9.2",
     "typescript": "5.6.2",
     "typescript-eslint": "8.14.0",
-    "wrangler": "^3.87.0"
+    "wrangler": "3.87.0"
   },
   "lint-staged": {
     "*.ts": [
