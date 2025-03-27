@@ -20,6 +20,10 @@ export class SpecificationRewriter {
       throw this.context.logger.error("User does not have sufficient permissions to rewrite spec");
     }
 
+    if (this.context.command?.name !== "rewrite") {
+      throw this.context.logger.error("Command is not /rewrite, Aborting!");
+    }
+
     const rewrittenSpec = await this.rewriteSpec();
 
     await this.context.octokit.rest.issues.update({
