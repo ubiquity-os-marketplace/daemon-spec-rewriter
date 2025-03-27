@@ -24,20 +24,6 @@
       "openRouterBaseUrl": {
         "default": "https://openrouter.ai/api/v1",
         "type": "string"
-      },
-      "tokenLimit": {
-        "default": {},
-        "type": "object",
-        "properties": {
-          "context": {
-            "default": 200000,
-            "type": "number"
-          },
-          "completion": {
-            "default": 4096,
-            "type": "number"
-          }
-        }
       }
     }
   }
