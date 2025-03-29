@@ -16,14 +16,14 @@ export class SpecificationRewriter {
   }
 
   async performSpecRewrite(): Promise<CallbackResult> {
-    if (!(await this.canUserRewrite(this.context))) {
-      throw this.context.logger.error("User does not have sufficient permissions to rewrite spec");
-    }
-
     if (this._isIssueCommentEvent(this.context)) {
       if (this.context.payload.comment.body !== "/rewrite") {
         throw this.context.logger.error("Command is not /rewrite, Aborting!");
       }
+    }
+
+    if (!(await this.canUserRewrite(this.context))) {
+      throw this.context.logger.error("User does not have sufficient permissions to rewrite spec");
     }
 
     const rewrittenSpec = await this.rewriteSpec();

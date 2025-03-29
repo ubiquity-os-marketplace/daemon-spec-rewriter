@@ -1,63 +1,59 @@
-export const llmQuery = `Rewrite the issue specification based on the provided GitHub conversation. 
+export const llmQuery = `Process the GitHub issue conversation with extreme precision.
 
-Your task is to:
-1. Analyze the entire conversation chronologically
-2. Extract and synthesize the most important information
-3. Create a clear, comprehensive specification
+CONTEXT: 
+- You'll receive a GitHub conversation including an original issue specification and comments.
+- Your goal is to synthesize this into an improved specification ONLY if there is sufficient context.
 
-Detailed Guidelines:
-- Prioritize the original issue body (first comment) as the primary source of intent
-- Give extra weight to comments from the original issue author
-- Incorporate substantive clarifications and additional requirements from subsequent comments
-- Resolve contradictions by:
-  a) Favoring more recent comments
-  b) Prioritizing comments from the issue author
-  c) Seeking the most precise and actionable formulation
-- Eliminate ambiguities and vague language
-- Ensure the specification is:
-  * Specific
-  * Measurable
-  * Achievable
-  * Relevant
-  * Time-bound (SMART criteria)
+TASK:
+1. Analyze the entire conversation chronologically.
+2. Extract and synthesize the most important information.
+3. Create a clear, comprehensive specification ONLY if there is sufficient context.
 
-Output Requirements:
-- Use markdown format
-- Include clear sections (e.g., Overview, Objectives, Detailed Requirements, Acceptance Criteria)
-- Provide context for any significant changes from the original specification
-- If insufficient information is present, clearly state the need for additional clarification
+DECISION CRITERIA:
+If any of the following are true:
+- The original specification is empty or minimal.
+- The conversation is vague or lacks substantive information.
+- There are unresolved contradictions.
+- Comments don't provide clear requirements.
+- You are uncertain about any aspect of the requirements.
+THEN, output exactly the text from the "GitHub Issue Specification" section with no modifications whatsoever.
 
-Constraints:
-- If no meaningful specification can be derived, make minimal changes
-- Do not add fictional or speculative requirements
-- Maintain the original intent of the issue as closely as possible`;
+IMPORTANT OUTPUT INSTRUCTIONS:
+- If insufficient context exists: Return ONLY the text contained in the "GitHub Issue Specification" section exactly as provided, with NO modifications, commentary, analysis, headers, or any additional text.
+- If sufficient context exists: Provide a well-structured markdown specification with clear sections.
+- DO NOT include any internal reasoning, chain-of-thought, or extra commentary in your output.
+`;
 
 export function createSpecRewriteSysMsg(githubConversation: string[], botName: string, issueAuthor?: string) {
   return [
     "Advanced GitHub Issue Specification Rewriter",
-    "\n",
+    "",
     "Core Objectives:",
-    "- Transform raw GitHub conversation into a precise, actionable specification",
-    "- Synthesize information from multiple comments",
-    "- Ensure clarity, completeness, and implementability",
-    "\n",
+    "- Transform raw GitHub conversation into a precise, actionable specification.",
+    "- Synthesize information from multiple comments.",
+    "- Ensure clarity, completeness, and implementability.",
+    "",
     "Sophisticated Analysis Guidelines:",
-    `- Primary source of intent: Issue body by ${issueAuthor}`,
+    `- Primary source of intent: Issue Specification by ${issueAuthor}`,
     `- Enhanced context weighting for comments by ${issueAuthor}`,
     `- Intelligent conflict resolution using:
-      * Chronological progression
-      * Author credibility
-      * Specificity of requirements`,
-    "- Comprehensive requirement synthesis",
-    "- Removal of ambiguities and speculative elements",
-    "\n",
+     * Chronological progression,
+     * Author credibility,
+     * Specificity of requirements.`,
+    "- Comprehensive requirement synthesis.",
+    "- Removal of ambiguities and speculative elements.",
+    "",
     `Assistant Persona: ${botName}`,
-    "\n",
-    "GitHub Conversation Transcript:",
-    githubConversation.join("\n"),
-    "\n",
+    "",
+    "GitHub Issue Specification:",
+    githubConversation[0],
+    "",
+    "GitHub Conversation:",
+    githubConversation.slice(1).join("\n"),
+    "",
     "Special Instructions:",
-    "- Produce a SMART (Specific, Measurable, Achievable, Relevant, Time-bound) specification",
-    "- If insufficient information is present, generate a structured request for clarification",
+    "- Produce a SMART (Specific, Measurable, Achievable, Relevant, Time-bound) specification.",
+    "- If insufficient information is present, return ONLY the exact text from the GitHub Issue Specification section above with no additional text, commentary, headers, or internal analysis.",
+    "- Do not include any internal chain-of-thought or reasoning in your final output.",
   ].join("\n");
 }

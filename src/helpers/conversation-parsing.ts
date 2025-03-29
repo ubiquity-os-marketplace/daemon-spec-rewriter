@@ -18,7 +18,7 @@ export async function fetchIssueConversation(context: Context, tokenLimits: Toke
   const issueNumber = context.payload.issue.number;
   const issue = context.payload.issue;
 
-  const issueBody = `${issue.user?.login}: ${issue.body || "No description provided"}`;
+  const issueBody = `${issue.body || "No description provided"}`;
   conversation.push(issueBody);
 
   const issueBodyTokenCount = countTokens(issueBody);
