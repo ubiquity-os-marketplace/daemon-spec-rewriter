@@ -1,4 +1,4 @@
-name: "Claude 3.7 Sonnet Spec Rewriter"
+name: "LLM Spec Rewriter"
 
 on:
   workflow_dispatch:

@@ -131,7 +131,7 @@ describe("SpecificationRewriter", () => {
       jest.spyOn(ctx.adapters.openRouter.completions, "getModelMaxTokenLimit").mockReturnValue(Promise.resolve(50000));
       jest.spyOn(ctx.adapters.openRouter.completions, "getModelMaxOutputLimit").mockReturnValue(Promise.resolve(5000));
 
-      const mockConversation = ["user1: This is a demo spec for a demo task just perfect for testing."];
+      const mockConversation = ["This is a demo spec for a demo task just perfect for testing."];
 
       const createCompletionSpy = jest.spyOn(ctx.adapters.openRouter.completions, "createCompletion").mockResolvedValue(MOCK_ISSUE_REWRITE_SPEC);
 
@@ -141,7 +141,7 @@ describe("SpecificationRewriter", () => {
         ctx.config.openRouterAiModel,
         mockConversation,
         ctx.env.UBIQUITY_OS_APP_NAME,
-        await ctx.adapters.openRouter.completions.getModelMaxTokenLimit()
+        await ctx.adapters.openRouter.completions.getModelMaxOutputLimit()
       );
 
       expect(result).toBe(MOCK_ISSUE_REWRITE_SPEC);
