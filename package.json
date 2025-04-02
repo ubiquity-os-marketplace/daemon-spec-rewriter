@@ -33,7 +33,6 @@
     "@ubiquity-os/plugin-sdk": "^3.0.0",
     "@ubiquity-os/ubiquity-os-logger": "^1.4.0",
     "dotenv": "^16.4.5",
-    "js-tiktoken": "^1.0.19",
     "openai": "^4.77.3"
   },
   "devDependencies": {
