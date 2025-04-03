@@ -22,7 +22,7 @@ on:
 
 jobs:
   compute:
-    name: "Pull review"
+    name: "LLM Spec Rewriter"
     runs-on: ubuntu-latest
     permissions: write-all
     environment: ${{ github.ref == 'refs/heads/main' && 'main' || 'development' }}
