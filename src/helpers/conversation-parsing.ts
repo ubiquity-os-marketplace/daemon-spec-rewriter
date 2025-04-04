@@ -1,5 +1,5 @@
 import { Context } from "../types/context";
-import { countTokens } from "@anthropic-ai/tokenizer";
+import { encode } from "gpt-tokenizer";
 
 export type TokenLimits = {
   modelMaxTokenLimit: number;
@@ -17,11 +17,15 @@ export async function fetchIssueConversation(context: Context, tokenLimits: Toke
   const repo = context.payload.repository.name;
   const issueNumber = context.payload.issue.number;
   const issue = context.payload.issue;
+  const issueBody = issue.body;
 
-  const issueBody = `${issue.body || "No description provided"}`;
+  if (!issueBody) {
+    throw context.logger.error("Issue body not found, Aborting");
+  }
+
   conversation.push(issueBody);
 
-  const issueBodyTokenCount = countTokens(issueBody);
+  const issueBodyTokenCount = encode(issueBody).length;
   tokenLimits.tokensRemaining -= issueBodyTokenCount;
 
   if (tokenLimits.tokensRemaining <= 0) {
@@ -39,13 +43,12 @@ export async function fetchIssueConversation(context: Context, tokenLimits: Toke
     })
     .then((response) => response.splice(1));
 
-  // get comments by newest first
+  // add the newest comments which fit in the context from oldest to newest
   const sortedComments = comments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   for (const comment of sortedComments) {
     const formattedComment = `${comment.user?.login}: ${comment.body}`;
-
-    const commentTokenCount = countTokens(formattedComment);
+    const commentTokenCount = encode(formattedComment).length;
 
     // Check if adding this comment would exceed token limit
     if (tokenLimits.tokensRemaining - commentTokenCount <= 0) {

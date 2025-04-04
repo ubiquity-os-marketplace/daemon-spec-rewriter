@@ -81,20 +81,6 @@ export const handlers = [
   ),
   // [MSW] Warning: intercepted a request without a matching request handler:
 
-  // • GET https://api.github.com/repos/ubiquity/test-repo/pulls/3/files?per_page=100?per_page=100
-  http.get("https://api.github.com/repos/:owner/:repo/pulls/:pull_number/files", () =>
-    HttpResponse.json([
-      {
-        sha: "abc123",
-        filename: "file1.txt",
-        status: "modified",
-        additions: 10,
-        deletions: 5,
-        changes: 15,
-      },
-    ])
-  ),
-
   http.get("https://api.github.com/repos/:owner/:repo/issues/:issue_number/events", () => {
     HttpResponse.json([
       {

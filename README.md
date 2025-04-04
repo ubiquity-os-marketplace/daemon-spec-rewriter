@@ -21,6 +21,7 @@ plugins:
         with:
           openRouterAiModel: "" # Optional - defaults to "anthropic/claude-3.7-sonnet"
           openRouterBaseUrl: "" # Optional - defaults to Open Router's API endpoint
+          maxRetryAttempts: 3 # Optional - defaults to 3
 ```
 
 `.dev.vars` (for local testing):

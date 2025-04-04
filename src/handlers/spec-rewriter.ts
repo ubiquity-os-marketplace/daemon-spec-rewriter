@@ -3,10 +3,7 @@ import { Context } from "../types";
 import { CallbackResult } from "../types/proxy";
 import { createSpecRewriteSysMsg, llmQuery } from "./prompt";
 import { TokenLimits } from "../helpers/conversation-parsing";
-import { countTokens } from "@anthropic-ai/tokenizer";
-
-export const ADMIN_ROLES = ["admin", "owner", "billing_manager"];
-export const COLLABORATOR_ROLES = ["write", "member", "collaborator"];
+import { encode } from "gpt-tokenizer";
 
 export class SpecificationRewriter {
   protected readonly context: Context;
@@ -17,12 +14,12 @@ export class SpecificationRewriter {
 
   async performSpecRewrite(): Promise<CallbackResult> {
     if (this._isIssueCommentEvent(this.context)) {
-      if (this.context.payload.comment.body !== "/rewrite") {
+      if (this.context.payload.comment.body.trim().startsWith("/rewrite")) {
         throw this.context.logger.error("Command is not /rewrite, Aborting!");
       }
     }
 
-    if (!(await this.canUserRewrite(this.context))) {
+    if (!(await this.canUserRewrite())) {
       throw this.context.logger.error("User does not have sufficient permissions to rewrite spec");
     }
 
@@ -47,8 +44,8 @@ export class SpecificationRewriter {
       },
     } = this.context;
 
-    const sysPromptTokenCount = countTokens(createSpecRewriteSysMsg([], UBIQUITY_OS_APP_NAME, ""));
-    const queryTokenCount = countTokens(llmQuery);
+    const sysPromptTokenCount = encode(createSpecRewriteSysMsg([], UBIQUITY_OS_APP_NAME, "")).length;
+    const queryTokenCount = encode(llmQuery).length;
 
     const modelMaxTokenLimit = await this.context.adapters.openRouter.completions.getModelMaxTokenLimit();
     const maxCompletionTokens = await this.context.adapters.openRouter.completions.getModelMaxOutputLimit();
@@ -64,61 +61,20 @@ export class SpecificationRewriter {
 
     // what we start out with to include files
     tokenLimits.tokensRemaining = tokenLimits.modelMaxTokenLimit - tokenLimits.maxCompletionTokens - sysPromptTokenCount - queryTokenCount;
+    // reduce 10% to accomodate token estimate
+    tokenLimits.tokensRemaining = 0.9 * tokenLimits.tokensRemaining;
     const githubConversation = await fetchIssueConversation(this.context, tokenLimits);
 
     return await completions.createCompletion(openRouterAiModel, githubConversation, UBIQUITY_OS_APP_NAME, maxCompletionTokens);
   }
 
-  async getUserRole(context: Context) {
-    const orgLogin = context.payload.organization?.login;
-    const user = context.payload.sender.login;
-    const { logger, octokit } = context;
-
-    try {
-      // Validate the organization login
-      if (typeof orgLogin !== "string" || orgLogin.trim() === "") {
-        throw new Error("Invalid organization name");
-      }
-
-      let role;
-
-      try {
-        const response = await octokit.rest.orgs.getMembershipForUser({
-          org: orgLogin,
-          username: user,
-        });
-        role = response.data.role.toLowerCase();
-        return role;
-      } catch (err) {
-        logger.error("Could not get user membership", { err });
-      }
-
-      // If we failed to get organization membership, narrow down to repo role
-      const permissionLevel = await octokit.rest.repos.getCollaboratorPermissionLevel({
-        username: user,
-        owner: context.payload.repository.owner.login,
-        repo: context.payload.repository.name,
-      });
-      role = permissionLevel.data.role_name?.toLowerCase();
-      context.logger.debug(`Retrieved collaborator permission level for ${user}.`, {
-        user,
-        owner: context.payload.repository.owner.login,
-        repo: context.payload.repository.name,
-        isAdmin: permissionLevel.data.user?.permissions?.admin,
-        role,
-        data: permissionLevel.data,
-      });
-
-      return role;
-    } catch (err) {
-      logger.error("Could not get user role", { err });
-      return "unknown";
-    }
-  }
-
-  async canUserRewrite(context: Context) {
-    const userRole = await this.getUserRole(context);
-    return ADMIN_ROLES.includes(userRole.toLowerCase()) || COLLABORATOR_ROLES.includes(userRole.toLowerCase());
+  async canUserRewrite() {
+    const checkRewrite = await this.context.octokit.rest.repos.checkCollaborator({
+      owner: this.context.payload.repository.owner.login,
+      repo: this.context.payload.repository.name,
+      username: this.context.payload.sender.login,
+    });
+    return checkRewrite.status == 204;
   }
 
   private _isIssueCommentEvent(context: Context<"issue_comment.created" | "issues.labeled">): context is Context<"issue_comment.created"> {
