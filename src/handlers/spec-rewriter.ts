@@ -1,9 +1,14 @@
-import { fetchIssueConversation } from "../helpers/conversation-parsing";
 import { Context } from "../types";
 import { CallbackResult } from "../types/proxy";
 import { createSpecRewriteSysMsg, llmQuery } from "./prompt";
-import { TokenLimits } from "../helpers/conversation-parsing";
 import { encode } from "gpt-tokenizer";
+import { RequestError } from "@octokit/request-error";
+
+export type TokenLimits = {
+  modelMaxTokenLimit: number;
+  maxCompletionTokens: number;
+  tokensRemaining: number;
+};
 
 export class SpecificationRewriter {
   protected readonly context: Context;
@@ -15,12 +20,12 @@ export class SpecificationRewriter {
   async performSpecRewrite(): Promise<CallbackResult> {
     if (this._isIssueCommentEvent(this.context)) {
       if (this.context.payload.comment.body.trim().startsWith("/rewrite")) {
-        throw this.context.logger.error("Command is not /rewrite, Aborting!");
+        throw this.context.logger.warn("Command is not /rewrite, Aborting!");
       }
     }
 
     if (!(await this.canUserRewrite())) {
-      throw this.context.logger.error("User does not have sufficient permissions to rewrite spec");
+      throw this.context.logger.warn("User does not have sufficient permissions to rewrite spec");
     }
 
     const rewrittenSpec = await this.rewriteSpec();
@@ -47,36 +52,94 @@ export class SpecificationRewriter {
     const sysPromptTokenCount = encode(createSpecRewriteSysMsg([], UBIQUITY_OS_APP_NAME, "")).length;
     const queryTokenCount = encode(llmQuery).length;
 
-    const modelMaxTokenLimit = await this.context.adapters.openRouter.completions.getModelMaxTokenLimit();
-    const maxCompletionTokens = await this.context.adapters.openRouter.completions.getModelMaxOutputLimit();
+    const tokenLimit = await this.context.adapters.openRouter.completions.getModelTokenLimits();
 
-    if (!modelMaxTokenLimit || !maxCompletionTokens) {
+    if (!tokenLimit) {
       throw this.context.logger.error(`The token limits for configured model ${this.context.config.openRouterAiModel} were not found`);
     }
     const tokenLimits: TokenLimits = {
-      modelMaxTokenLimit,
-      maxCompletionTokens,
+      modelMaxTokenLimit: tokenLimit.contextLength,
+      maxCompletionTokens: tokenLimit.maxCompletionTokens,
       tokensRemaining: 0,
     };
-
     // what we start out with to include files
     tokenLimits.tokensRemaining = tokenLimits.modelMaxTokenLimit - tokenLimits.maxCompletionTokens - sysPromptTokenCount - queryTokenCount;
     // reduce 10% to accomodate token estimate
     tokenLimits.tokensRemaining = 0.9 * tokenLimits.tokensRemaining;
-    const githubConversation = await fetchIssueConversation(this.context, tokenLimits);
+    const githubConversation = await this.fetchIssueConversation(this.context, tokenLimits);
 
-    return await completions.createCompletion(openRouterAiModel, githubConversation, UBIQUITY_OS_APP_NAME, maxCompletionTokens);
+    return await completions.createCompletion(openRouterAiModel, githubConversation, UBIQUITY_OS_APP_NAME, tokenLimit.maxCompletionTokens);
   }
 
   async canUserRewrite() {
-    const checkRewrite = await this.context.octokit.rest.repos.checkCollaborator({
-      owner: this.context.payload.repository.owner.login,
-      repo: this.context.payload.repository.name,
-      username: this.context.payload.sender.login,
-    });
-    return checkRewrite.status == 204;
+    if (this.context.payload.sender.type === "BOT") return true;
+    try {
+      const checkRewrite = await this.context.octokit.rest.repos.checkCollaborator({
+        owner: this.context.payload.repository.owner.login,
+        repo: this.context.payload.repository.name,
+        username: this.context.payload.sender.login,
+      });
+      return checkRewrite.status === 204;
+    } catch (error) {
+      if (error instanceof RequestError && error.status === 404) {
+        return false;
+      }
+      throw error;
+    }
   }
 
+  async fetchIssueConversation(context: Context, tokenLimits: TokenLimits): Promise<string[]> {
+    const conversation: string[] = [];
+    const owner = context.payload.repository.owner.login;
+    const repo = context.payload.repository.name;
+    const issueNumber = context.payload.issue.number;
+    const issue = context.payload.issue;
+    const issueBody = issue.body;
+
+    if (!issueBody) {
+      throw context.logger.error("Issue body not found, Aborting");
+    }
+
+    conversation.push(issueBody);
+
+    const issueBodyTokenCount = encode(issueBody).length;
+    tokenLimits.tokensRemaining -= issueBodyTokenCount;
+
+    if (tokenLimits.tokensRemaining <= 0) {
+      context.logger.info("Token limit reached after adding issue body, returning conversation as is");
+      return conversation;
+    }
+
+    // Fetch all comments for the issue and remove issue body
+    const comments = await context.octokit
+      .paginate(context.octokit.rest.issues.listComments, {
+        owner,
+        repo,
+        issue_number: issueNumber,
+        per_page: 100,
+      })
+      .then((response) => response.splice(1));
+
+    // add the newest comments which fit in the context from oldest to newest
+    const sortedComments = comments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    for (const comment of sortedComments) {
+      const formattedComment = `${comment.user?.login}: ${comment.body}`;
+      const commentTokenCount = encode(formattedComment).length;
+
+      // Check if adding this comment would exceed token limit
+      if (tokenLimits.tokensRemaining - commentTokenCount <= 0) {
+        context.logger.info("Token limit would be exceeded, stopping comment collection");
+        break;
+      }
+
+      // Add comment at index 1 pushing existing comment forward and update token counts
+      conversation.splice(1, 0, formattedComment);
+      tokenLimits.tokensRemaining -= commentTokenCount;
+    }
+
+    return conversation;
+  }
   private _isIssueCommentEvent(context: Context<"issue_comment.created" | "issues.labeled">): context is Context<"issue_comment.created"> {
     return "comment" in context.payload;
   }

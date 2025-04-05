@@ -9,10 +9,16 @@ import repoTemplate from "./__mocks__/repo-template";
 import { Octokit, RestEndpointMethodTypes } from "@octokit/rest";
 import { Logs } from "@ubiquity-os/ubiquity-os-logger";
 import { SpecificationRewriter } from "../src/handlers/spec-rewriter";
+import { encode } from "gpt-tokenizer";
+import { createSpecRewriteSysMsg, llmQuery } from "../src/handlers/prompt";
 
 // Mock constants
 const MOCK_ISSUE_REWRITE_SPEC = "rewritten specification";
+const MOCK_SYS_PROMPT = createSpecRewriteSysMsg([], "UbiquityOS", "");
+const MOCK_QUERY = llmQuery;
+const MOCK_ISSUE_BODY = "This is the issue body with the specification that needs to be rewritten.";
 
+// Mocks
 describe("SpecificationRewriter", () => {
   let specRewriter: SpecificationRewriter;
   let ctx: Context;
@@ -42,8 +48,8 @@ describe("SpecificationRewriter", () => {
       await expect(specRewriter.performSpecRewrite()).rejects.toMatchObject({
         logMessage: {
           raw: "User does not have sufficient permissions to rewrite spec",
-          level: "error",
-          type: "error",
+          level: "warn",
+          type: "warn",
         },
         metadata: {
           caller: "SpecificationRewriter.performSpecRewrite",
@@ -74,8 +80,10 @@ describe("SpecificationRewriter", () => {
 
   describe("rewriteSpec", () => {
     it("should create completion using github conversation", async () => {
-      jest.spyOn(ctx.adapters.openRouter.completions, "getModelMaxTokenLimit").mockReturnValue(Promise.resolve(50000));
-      jest.spyOn(ctx.adapters.openRouter.completions, "getModelMaxOutputLimit").mockReturnValue(Promise.resolve(5000));
+      console.error(ctx.adapters.openRouter);
+      jest
+        .spyOn(ctx.adapters.openRouter.completions, "getModelTokenLimits")
+        .mockReturnValue(Promise.resolve({ contextLength: 50000, maxCompletionTokens: 5000 }));
 
       const mockConversation = ["This is a demo spec for a demo task just perfect for testing."];
 
@@ -87,11 +95,23 @@ describe("SpecificationRewriter", () => {
         ctx.config.openRouterAiModel,
         mockConversation,
         ctx.env.UBIQUITY_OS_APP_NAME,
-        await ctx.adapters.openRouter.completions.getModelMaxOutputLimit()
+        (await ctx.adapters.openRouter.completions.getModelTokenLimits())?.maxCompletionTokens
       );
 
       expect(result).toBe(MOCK_ISSUE_REWRITE_SPEC);
     });
+  });
+
+  it("should calculate token budget correctly when calling fetchIssueConversation", async () => {
+    jest.spyOn(ctx.adapters.openRouter.completions, "getModelTokenLimits").mockResolvedValue({ contextLength: 4000, maxCompletionTokens: 1000 });
+
+    jest.spyOn(specRewriter, "fetchIssueConversation").mockImplementation(async () => [MOCK_ISSUE_BODY]);
+    await specRewriter.rewriteSpec();
+
+    expect(specRewriter.fetchIssueConversation).toHaveBeenCalledWith(
+      { ...ctx },
+      { maxCompletionTokens: 1000, modelMaxTokenLimit: 4000, tokensRemaining: (4000 - 1000 - encode(MOCK_SYS_PROMPT).length - encode(MOCK_QUERY).length) * 0.9 }
+    );
   });
 });
 
@@ -138,8 +158,9 @@ function createContext() {
     adapters: {
       openRouter: {
         completions: {
-          getModelMaxTokenLimit: () => 50000,
-          getModelMaxOutputLimit: () => 50000,
+          getModelTokenLimits: () => {
+            return { contextLength: 50000, maxCompletionTokens: 5000 };
+          },
           createCompletion: async (): Promise<string> => MOCK_ISSUE_REWRITE_SPEC,
         },
       },

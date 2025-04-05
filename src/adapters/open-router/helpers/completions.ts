@@ -9,12 +9,8 @@ export class OpenRouterCompletion extends SuperOpenRouter {
     super(client, context);
   }
 
-  async getModelMaxTokenLimit(): Promise<number | undefined> {
-    return (await getOpenRouterModelTokenLimits(this.context.config.openRouterAiModel))?.contextLength;
-  }
-
-  async getModelMaxOutputLimit(): Promise<number | undefined> {
-    return (await getOpenRouterModelTokenLimits(this.context.config.openRouterAiModel))?.maxCompletionTokens;
+  async getModelTokenLimits(): Promise<{ contextLength: number; maxCompletionTokens: number } | null> {
+    return await getOpenRouterModelTokenLimits(this.context.config.openRouterAiModel);
   }
 
   async createCompletion(model: string, githubConversation: string[], botName: string, maxTokens: number): Promise<string> {
@@ -22,9 +18,9 @@ export class OpenRouterCompletion extends SuperOpenRouter {
 
     this.context.logger.debug(`System message: ${sysMsg}`);
 
-    const res = await retry(
+    const llmResponse = await retry(
       async () => {
-        return (await this.client.chat.completions.create({
+        const res = (await this.client.chat.completions.create({
           model: model,
           messages: [
             {
@@ -38,7 +34,21 @@ export class OpenRouterCompletion extends SuperOpenRouter {
           ],
           max_completion_tokens: maxTokens,
           temperature: 0,
-        })) as OpenAI.Chat.Completions.ChatCompletion & OpenRouterError;
+        })) as OpenAI.Chat.Completions.ChatCompletion | OpenRouterError;
+        if ("error" in res) {
+          throw this.context.logger.error(`LLM Error: ${res.error.message}`);
+        }
+
+        if (!res.choices || res.choices.length === 0) {
+          throw this.context.logger.error("Unexpected no response from LLM: No choices returned.");
+        }
+
+        const answer = res.choices[0].message.content;
+        if (!answer) {
+          throw this.context.logger.error("Unexpected response format: Expected text block");
+        }
+
+        return { res, answer };
       },
       {
         maxRetries: this.context.config.maxRetryAttempts,
@@ -47,24 +57,16 @@ export class OpenRouterCompletion extends SuperOpenRouter {
         },
       }
     );
-    if (!res.choices || res.choices.length === 0) {
-      throw this.context.logger.error(`Unexpected no response from LLM, Reason: ${res.error ? res.error.message : "No reason specified"}`);
-    }
 
-    const answer = res.choices[0].message.content;
-    if (!answer) {
-      throw this.context.logger.error("Unexpected response format: Expected text block");
-    }
-
-    const inputTokens = res.usage?.prompt_tokens;
-    const completionTokens = res.usage?.completion_tokens;
+    const inputTokens = llmResponse.res.usage?.prompt_tokens;
+    const completionTokens = llmResponse.res.usage?.completion_tokens;
 
     if (inputTokens && completionTokens) {
-      this.context.logger.info(`Number of tokens input tokens used: ${inputTokens}, Number of tokens output tokens generated: ${completionTokens}`);
+      this.context.logger.info(`Number of tokens tokens used: ${inputTokens + completionTokens}`, { inputTokens, completionTokens });
     } else {
       this.context.logger.info(`LLM did not output usage statistics`);
     }
 
-    return answer;
+    return llmResponse.answer;
   }
 }
