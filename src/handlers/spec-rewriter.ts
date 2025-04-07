@@ -72,7 +72,7 @@ export class SpecificationRewriter {
   }
 
   async canUserRewrite() {
-    if (this.context.payload.sender.type === "BOT") return true;
+    if (this.context.payload.sender.type === "Bot") return true;
     try {
       const checkRewrite = await this.context.octokit.rest.repos.checkCollaborator({
         owner: this.context.payload.repository.owner.login,
