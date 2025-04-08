@@ -100,7 +100,7 @@ describe("SpecificationRewriter", () => {
       { created_at: "2021-01-01T00:00:00Z", body: "issue spec", user: { login: "test" } },
       {
         created_at: "2021-01-02T00:00:00Z",
-        body: "excluded (this comment will be skipped as its old and doesnt fit in remaining tokens)",
+        body: "excluded (this comment will be skipped as its old and doesn't fit in remaining tokens)",
         user: { login: "test" },
       },
       { created_at: "2021-01-03T00:00:00Z", body: "included", user: { login: "test" } },

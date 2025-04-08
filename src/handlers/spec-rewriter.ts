@@ -64,7 +64,7 @@ export class SpecificationRewriter {
     };
     // what we start out with to include files
     tokenLimits.tokensRemaining = tokenLimits.modelMaxTokenLimit - tokenLimits.maxCompletionTokens - sysPromptTokenCount - queryTokenCount;
-    // reduce 10% to accomodate token estimate
+    // reduce 10% to accommodate token estimate
     tokenLimits.tokensRemaining = 0.9 * tokenLimits.tokensRemaining;
     const githubConversation = await this.fetchIssueConversation(this.context, tokenLimits);
 
