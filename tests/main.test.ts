@@ -9,16 +9,10 @@ import repoTemplate from "./__mocks__/repo-template";
 import { Octokit, RestEndpointMethodTypes } from "@octokit/rest";
 import { Logs } from "@ubiquity-os/ubiquity-os-logger";
 import { SpecificationRewriter } from "../src/handlers/spec-rewriter";
-import { encode } from "gpt-tokenizer";
-import { createSpecRewriteSysMsg, llmQuery } from "../src/handlers/prompt";
 
 // Mock constants
 const MOCK_ISSUE_REWRITE_SPEC = "rewritten specification";
-const MOCK_SYS_PROMPT = createSpecRewriteSysMsg([], "UbiquityOS", "");
-const MOCK_QUERY = llmQuery;
-const MOCK_ISSUE_BODY = "This is the issue body with the specification that needs to be rewritten.";
 
-// Mocks
 describe("SpecificationRewriter", () => {
   let specRewriter: SpecificationRewriter;
   let ctx: Context;
@@ -80,12 +74,11 @@ describe("SpecificationRewriter", () => {
 
   describe("rewriteSpec", () => {
     it("should create completion using github conversation", async () => {
-      console.error(ctx.adapters.openRouter);
       jest
         .spyOn(ctx.adapters.openRouter.completions, "getModelTokenLimits")
         .mockReturnValue(Promise.resolve({ contextLength: 50000, maxCompletionTokens: 5000 }));
 
-      const mockConversation = ["This is a demo spec for a demo task just perfect for testing."];
+      const mockConversation = ["issue spec"];
 
       const createCompletionSpy = jest.spyOn(ctx.adapters.openRouter.completions, "createCompletion").mockResolvedValue(MOCK_ISSUE_REWRITE_SPEC);
 
@@ -103,15 +96,27 @@ describe("SpecificationRewriter", () => {
   });
 
   it("should calculate token budget correctly when calling fetchIssueConversation", async () => {
-    jest.spyOn(ctx.adapters.openRouter.completions, "getModelTokenLimits").mockResolvedValue({ contextLength: 4000, maxCompletionTokens: 1000 });
+    const fakeComments = [
+      { created_at: "2021-01-01T00:00:00Z", body: "issue spec", user: { login: "test" } },
+      {
+        created_at: "2021-01-02T00:00:00Z",
+        body: "excluded (this comment will be skipped as its old and doesnt fit in remaining tokens)",
+        user: { login: "test" },
+      },
+      { created_at: "2021-01-03T00:00:00Z", body: "included", user: { login: "test" } },
+      { created_at: "2021-01-04T00:00:00Z", body: "included", user: { login: "test" } },
+      { created_at: "2021-01-05T00:00:00Z", body: "included", user: { login: "test" } },
+    ];
 
-    jest.spyOn(specRewriter, "fetchIssueConversation").mockImplementation(async () => [MOCK_ISSUE_BODY]);
-    await specRewriter.rewriteSpec();
+    jest.spyOn(ctx.octokit, "paginate").mockResolvedValue(fakeComments);
 
-    expect(specRewriter.fetchIssueConversation).toHaveBeenCalledWith(
-      { ...ctx },
-      { maxCompletionTokens: 1000, modelMaxTokenLimit: 4000, tokensRemaining: (4000 - 1000 - encode(MOCK_SYS_PROMPT).length - encode(MOCK_QUERY).length) * 0.9 }
-    );
+    const result = await specRewriter.fetchIssueConversation(ctx, {
+      maxCompletionTokens: 1000,
+      modelMaxTokenLimit: 4000,
+      tokensRemaining: 12,
+    });
+
+    expect(result).toEqual(["issue spec", "test: included", "test: included", "test: included"]);
   });
 });
 
