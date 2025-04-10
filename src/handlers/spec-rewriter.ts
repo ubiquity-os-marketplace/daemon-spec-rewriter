@@ -18,10 +18,9 @@ export class SpecificationRewriter {
   }
 
   async performSpecRewrite(): Promise<CallbackResult> {
-    if (this._isIssueCommentEvent(this.context)) {
-      if (this.context.payload.comment.body.trim().startsWith("/rewrite")) {
-        throw this.context.logger.warn("Command is not /rewrite, Aborting!");
-      }
+    if (this._isIssueCommentEvent(this.context) && !this.context.payload.comment.body.trim().startsWith("/rewrite")) {
+      this.context.logger.warn("Command is not /rewrite, Aborting!");
+      return { status: 204, reason: "Command is not /rewrite" };
     }
 
     if (!(await this.canUserRewrite())) {
