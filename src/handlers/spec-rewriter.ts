@@ -12,9 +12,13 @@ export type TokenLimits = {
 
 export class SpecificationRewriter {
   protected readonly context: Context;
+  readonly cooldown: number;
 
   constructor(context: Context) {
     this.context = context;
+
+    // 1 minute
+    this.cooldown = 1000 * 60;
   }
 
   async performSpecRewrite(): Promise<CallbackResult> {
@@ -27,8 +31,21 @@ export class SpecificationRewriter {
       throw this.context.logger.warn("User does not have sufficient permissions to rewrite spec");
     }
 
-    const rewrittenSpec = await this.rewriteSpec();
+    const issueBody = this.context.payload.issue.body;
+    const rewriterRegex = /<!-- daemon-spec-rewriter - (.*?) -->/;
+    const match = issueBody?.match(rewriterRegex);
 
+    if (match) {
+      const lastRewriteTimestamp = new Date(match[1]);
+      const currentTime = new Date();
+
+      if (currentTime.getTime() - lastRewriteTimestamp.getTime() < this.cooldown) {
+        this.context.logger.warn("Cooldown period active, Aborting!");
+        return { status: 204, reason: "Currently on cooldown" };
+      }
+    }
+
+    const rewrittenSpec = (await this.rewriteSpec()) + "\n" + `<!-- daemon-spec-rewriter - ${new Date().toISOString()} -->`;
     await this.context.octokit.rest.issues.update({
       owner: this.context.payload.repository.owner.login,
       repo: this.context.payload.repository.name,

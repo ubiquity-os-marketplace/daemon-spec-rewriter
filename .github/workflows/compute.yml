@@ -20,6 +20,10 @@ on:
       command:
         description: "Command"
 
+concurrency:
+  group: ${{ fromJSON(inputs.eventPayload).issue.url }}
+  cancel-in-progress: false
+
 jobs:
   compute:
     name: "LLM Spec Rewriter"
