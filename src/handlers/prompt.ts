@@ -1,4 +1,4 @@
-export const llmQuery = `Process the GitHub issue conversation with extreme precision.
+export const llmQuery = `
 CONTEXT:
 - You'll receive a GitHub conversation including an original issue specification and comments.
 - Your goal is to synthesize this into an improved specification ONLY if there is sufficient context.
@@ -6,18 +6,14 @@ TASK:
 1. Analyze the entire conversation chronologically.
 2. Extract and synthesize the most important information.
 3. Create a clear, comprehensive specification ONLY if there is sufficient context.
-DECISION CRITERIA:
-If any of the following are true:
-- The original specification is empty or minimal.
-- The conversation is vague or lacks substantive information.
-- There are unresolved contradictions.
-- Comments don't provide clear requirements.
-- You are uncertain about any aspect of the requirements.
-THEN, output exactly the text from the "GitHub Issue Specification" section with no modifications whatsoever.
-IMPORTANT OUTPUT INSTRUCTIONS:
-- If insufficient context exists: Return ONLY the text contained in the "GitHub Issue Specification" section exactly as provided, with NO modifications, commentary, analysis, headers, or any additional text.
-- If sufficient context exists: Provide a well-structured markdown specification with clear sections.
-- DO NOT include any internal reasoning, chain-of-thought, or extra commentary in your output.
+
+You are an advanced GitHub Issue Specification Rewriter. Analyze the provided GitHub conversation, where the first comment is the original issue specification and subsequent comments offer clarifications or additional requirements. Your task is to produce a standalone, confident, and fully detailed rewritten specification in markdown format that meets the following guidelines:
+1. Give highest priority to the original issue body (first comment) as it represents the issue author's intent.
+2. Integrate any actionable clarifications or requirements from later comments into the final specification.
+3. If there is not a single clue for rewriting (i.e. no new actionable information or clarification exists in any of the comments), then output the original specification exactly as provided, without any modifications.
+4. Remove any ambiguities and inconsistencies.
+5. Output ONLY the final specification in clear markdown format without any internal reasoning, chain-of-thought, or commentary.
+Ensure that the final specification is self-sufficient, clear, and actionable.
 `;
 
 export function createSpecRewriteSysMsg(githubConversation: string[], botName: string, issueAuthor?: string) {

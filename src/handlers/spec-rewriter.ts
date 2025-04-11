@@ -45,7 +45,7 @@ export class SpecificationRewriter {
       }
     }
 
-    const rewrittenSpec = (await this.rewriteSpec()) + "\n" + `<!-- daemon-spec-rewriter - ${new Date().toISOString()} -->`;
+    const rewrittenSpec = (await this.rewriteSpec()) + "\n\n" + `<!-- daemon-spec-rewriter - ${new Date().toISOString()} -->`;
     await this.context.octokit.rest.issues.update({
       owner: this.context.payload.repository.owner.login,
       repo: this.context.payload.repository.name,
@@ -110,12 +110,11 @@ export class SpecificationRewriter {
     const repo = context.payload.repository.name;
     const issueNumber = context.payload.issue.number;
     const issue = context.payload.issue;
-    const issueBody = issue.body;
 
-    if (!issueBody) {
+    if (!issue.body) {
       throw context.logger.error("Issue body not found, Aborting");
     }
-
+    const issueBody = issue.body.replace(/^\s*<!-- daemon-spec-rewriter[\s\S]*?-->\s*$/gm, "");
     conversation.push(issueBody);
 
     const issueBodyTokenCount = encode(issueBody).length;
