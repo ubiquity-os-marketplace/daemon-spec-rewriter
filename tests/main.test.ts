@@ -52,6 +52,10 @@ describe("SpecificationRewriter", () => {
     });
 
     it("should successfully rewrite specification", async () => {
+      // Mock Date to return a consistent value
+      const mockDate = new Date("2025-01-01T12:00:00Z");
+      jest.spyOn(global, "Date").mockImplementation(() => mockDate);
+
       jest.spyOn(specRewriter, "canUserRewrite").mockResolvedValue(true);
       jest.spyOn(specRewriter, "rewriteSpec").mockResolvedValue(MOCK_ISSUE_REWRITE_SPEC);
 
@@ -61,14 +65,17 @@ describe("SpecificationRewriter", () => {
 
       const result = await specRewriter.performSpecRewrite();
 
+      const expectedBody = `${MOCK_ISSUE_REWRITE_SPEC}\n<!-- daemon-spec-rewriter - ${mockDate.toISOString()} -->`;
+
       expect(updateSpy).toHaveBeenCalledWith({
         owner: ctx.payload.repository.owner.login,
         repo: ctx.payload.repository.name,
         issue_number: ctx.payload.issue.number,
-        body: MOCK_ISSUE_REWRITE_SPEC,
+        body: expectedBody,
       });
 
       expect(result).toEqual({ status: 200, reason: "Success" });
+      jest.spyOn(global, "Date").mockRestore();
     });
   });
 
