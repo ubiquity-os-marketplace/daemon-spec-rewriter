@@ -17,8 +17,8 @@ export class SpecificationRewriter {
   constructor(context: Context) {
     this.context = context;
 
-    // 1 minute
-    this.cooldown = 1000 * 60;
+    // 5 minutes
+    this.cooldown = 1000 * 60 * 5;
   }
 
   async performSpecRewrite(): Promise<CallbackResult> {
