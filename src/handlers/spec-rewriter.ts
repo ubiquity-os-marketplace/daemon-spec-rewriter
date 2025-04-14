@@ -38,10 +38,12 @@ export class SpecificationRewriter {
     if (match) {
       const lastRewriteTimestamp = new Date(match[1]);
       const currentTime = new Date();
+      const elapsedTime = currentTime.getTime() - lastRewriteTimestamp.getTime();
 
-      if (currentTime.getTime() - lastRewriteTimestamp.getTime() < this.cooldown) {
+      if (elapsedTime < this.cooldown) {
         this.context.logger.warn("Cooldown period active, Aborting!");
-        return { status: 204, reason: "Currently on cooldown" };
+        const timeLeft = (this.cooldown - elapsedTime) / 1000 / 60;
+        throw this.context.logger.warn(`Rewrite is currently on cooldown, Please try again after ${Math.ceil(timeLeft)} minutes`);
       }
     }
 
@@ -67,12 +69,16 @@ export class SpecificationRewriter {
 
     const sysPromptTokenCount = encode(createSpecRewriteSysMsg([], UBIQUITY_OS_APP_NAME, "")).length;
     const queryTokenCount = encode(llmQuery).length;
-
     const tokenLimit = await this.context.adapters.openRouter.completions.getModelTokenLimits();
 
     if (!tokenLimit) {
       throw this.context.logger.error(`The token limits for configured model ${this.context.config.openRouterAiModel} were not found`);
     }
+
+    if (tokenLimit.contextLength === tokenLimit.maxCompletionTokens) {
+      tokenLimit.maxCompletionTokens == tokenLimit.contextLength / 10;
+    }
+
     const tokenLimits: TokenLimits = {
       modelMaxTokenLimit: tokenLimit.contextLength,
       maxCompletionTokens: tokenLimit.maxCompletionTokens,
@@ -133,7 +139,12 @@ export class SpecificationRewriter {
         issue_number: issueNumber,
         per_page: 100,
       })
-      .then((response) => response.splice(1));
+      .then((response) =>
+        response
+          .splice(1)
+          .filter((comment) => comment.user?.type !== "Bot")
+          .filter((comment) => comment.body && !/^\/\w+$/.test(comment.body))
+      );
 
     // add the newest comments which fit in the context from oldest to newest
     const sortedComments = comments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
