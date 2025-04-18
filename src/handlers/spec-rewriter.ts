@@ -102,7 +102,7 @@ export class SpecificationRewriter {
     const githubConversation = await this.fetchIssueConversation(this.context, tokenLimits);
 
     if (githubConversation.length == 1) {
-      this.context.logger.error("Skipping spec rewrite as issue doesnt have a conversation");
+      this.context.logger.error("Skipping spec rewrite as issue doesn't have a conversation");
       return { status: 204, reason: "Skipping spec rewrite as issue doesn't have a conversation" };
     }
 
