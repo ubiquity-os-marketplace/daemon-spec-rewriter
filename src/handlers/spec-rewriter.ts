@@ -103,7 +103,7 @@ export class SpecificationRewriter {
 
     if (githubConversation.length == 1) {
       this.context.logger.error("Skipping spec rewrite as issue doesnt have a conversation");
-      return { status: 204, reason: "Skipping spec rewrite as issue doesnt have a conversation" };
+      return { status: 204, reason: "Skipping spec rewrite as issue doesn't have a conversation" };
     }
 
     return await completions.createCompletion(openRouterAiModel, githubConversation, UBIQUITY_OS_APP_NAME, tokenLimit.maxCompletionTokens);
