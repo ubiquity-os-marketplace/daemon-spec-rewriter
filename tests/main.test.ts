@@ -33,6 +33,17 @@ describe("SpecificationRewriter", () => {
     await setupTests();
     ctx = createContext();
     specRewriter = new SpecificationRewriter(ctx);
+
+    const fakeComments = [
+      { created_at: "2021-01-01T00:00:00Z", body: "issue spec", user: { login: "test" } },
+      {
+        created_at: "2021-01-02T00:00:00Z",
+        body: "test",
+        user: { login: "user" },
+      },
+    ];
+
+    jest.spyOn(ctx.octokit, "paginate").mockResolvedValue(fakeComments);
   });
 
   describe("performSpecRewrite", () => {
@@ -65,7 +76,7 @@ describe("SpecificationRewriter", () => {
 
       const result = await specRewriter.performSpecRewrite();
 
-      const expectedBody = `${MOCK_ISSUE_REWRITE_SPEC}\n<!-- daemon-spec-rewriter - ${mockDate.toISOString()} -->`;
+      const expectedBody = `${MOCK_ISSUE_REWRITE_SPEC}\n\n<!-- daemon-spec-rewriter - ${mockDate.toISOString()} -->`;
 
       expect(updateSpy).toHaveBeenCalledWith({
         owner: ctx.payload.repository.owner.login,
@@ -85,7 +96,7 @@ describe("SpecificationRewriter", () => {
         .spyOn(ctx.adapters.openRouter.completions, "getModelTokenLimits")
         .mockReturnValue(Promise.resolve({ contextLength: 50000, maxCompletionTokens: 5000 }));
 
-      const mockConversation = ["issue spec"];
+      const mockConversation = ["issue spec", "user: test"];
 
       const createCompletionSpy = jest.spyOn(ctx.adapters.openRouter.completions, "createCompletion").mockResolvedValue(MOCK_ISSUE_REWRITE_SPEC);
 

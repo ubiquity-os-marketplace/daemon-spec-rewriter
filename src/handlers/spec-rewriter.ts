@@ -46,8 +46,13 @@ export class SpecificationRewriter {
         throw this.context.logger.warn(`Rewrite is currently on cooldown, Please try again after ${Math.ceil(timeLeft)} minutes`);
       }
     }
+    const specOrCallback = await this.rewriteSpec();
 
-    const rewrittenSpec = (await this.rewriteSpec()) + "\n\n" + `<!-- daemon-spec-rewriter - ${new Date().toISOString()} -->`;
+    if (typeof specOrCallback === "object") {
+      return specOrCallback as CallbackResult;
+    }
+
+    const rewrittenSpec = specOrCallback + "\n\n" + `<!-- daemon-spec-rewriter - ${new Date().toISOString()} -->`;
     await this.context.octokit.rest.issues.update({
       owner: this.context.payload.repository.owner.login,
       repo: this.context.payload.repository.name,
@@ -58,7 +63,13 @@ export class SpecificationRewriter {
     return { status: 200, reason: "Success" };
   }
 
-  async rewriteSpec() {
+  async rewriteSpec(): Promise<
+    | string
+    | {
+        status: number;
+        reason: string;
+      }
+  > {
     const {
       env: { UBIQUITY_OS_APP_NAME },
       config: { openRouterAiModel },
@@ -76,7 +87,7 @@ export class SpecificationRewriter {
     }
 
     if (tokenLimit.contextLength === tokenLimit.maxCompletionTokens) {
-      tokenLimit.maxCompletionTokens == tokenLimit.contextLength / 10;
+      tokenLimit.maxCompletionTokens = tokenLimit.contextLength / 10;
     }
 
     const tokenLimits: TokenLimits = {
@@ -89,6 +100,11 @@ export class SpecificationRewriter {
     // reduce 10% to accommodate token estimate
     tokenLimits.tokensRemaining = 0.9 * tokenLimits.tokensRemaining;
     const githubConversation = await this.fetchIssueConversation(this.context, tokenLimits);
+
+    if (githubConversation.length == 1) {
+      this.context.logger.error("Skipping spec rewrite as issue doesnt have a conversation");
+      return { status: 204, reason: "Skipping spec rewrite as issue doesnt have a conversation" };
+    }
 
     return await completions.createCompletion(openRouterAiModel, githubConversation, UBIQUITY_OS_APP_NAME, tokenLimit.maxCompletionTokens);
   }
