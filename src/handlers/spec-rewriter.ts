@@ -102,8 +102,7 @@ export class SpecificationRewriter {
     const githubConversation = await this.fetchIssueConversation(this.context, tokenLimits);
 
     if (githubConversation.length == 1) {
-      this.context.logger.error("Skipping spec rewrite as issue doesn't have a conversation");
-      return { status: 204, reason: "Skipping spec rewrite as issue doesn't have a conversation" };
+      throw this.context.logger.warn(`Skipping "/rewrite" as this doesn't have a conversation`);
     }
 
     return await completions.createCompletion(openRouterAiModel, githubConversation, UBIQUITY_OS_APP_NAME, tokenLimit.maxCompletionTokens);
@@ -159,7 +158,7 @@ export class SpecificationRewriter {
         response
           .splice(1)
           .filter((comment) => comment.user?.type !== "Bot")
-          .filter((comment) => comment.body && !/^\/\w+$/.test(comment.body))
+          .filter((comment) => comment.body && !/^\/\w+$/.test(comment.body.trim()))
       );
 
     // add the newest comments which fit in the context from oldest to newest
