@@ -1,4 +1,23 @@
-import { StaticDecode, Type as T } from "@sinclair/typebox";
+import { StaticDecode, StringOptions, Type as T, TypeBoxError } from "@sinclair/typebox";
+import ms from "ms";
+
+function thresholdType(options?: StringOptions) {
+  return T.Transform(T.String(options))
+    .Decode((value) => {
+      const milliseconds = ms(value);
+      if (milliseconds === undefined) {
+        throw new TypeBoxError(`Invalid threshold value: [${value}]`);
+      }
+      return milliseconds;
+    })
+    .Encode((value) => {
+      const textThreshold = ms(value, { long: true });
+      if (textThreshold === undefined) {
+        throw new TypeBoxError(`Invalid threshold value: [${value}]`);
+      }
+      return textThreshold;
+    });
+}
 
 /**
  * This should contain the properties of the bot config
@@ -13,6 +32,11 @@ export const pluginSettingsSchema = T.Object(
     openRouterAiModel: T.String({ default: "anthropic/claude-3.7-sonnet" }),
     openRouterBaseUrl: T.String({ default: "https://openrouter.ai/api/v1" }),
     maxRetryAttempts: T.Number({ default: 5 }),
+    cooldown: thresholdType({
+      default: "5 minutes",
+      description: "The cooldown before between each issue's rewrite",
+      examples: ["5 minutes", "3 minutes"],
+    }),
   },
   { default: {} }
 );

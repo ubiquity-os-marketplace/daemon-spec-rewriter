@@ -9,6 +9,7 @@ import repoTemplate from "./__mocks__/repo-template";
 import { Octokit, RestEndpointMethodTypes } from "@octokit/rest";
 import { Logs } from "@ubiquity-os/ubiquity-os-logger";
 import { SpecificationRewriter } from "../src/handlers/spec-rewriter";
+import { encode } from "gpt-tokenizer";
 
 // Mock constants
 const MOCK_ISSUE_REWRITE_SPEC = "rewritten specification";
@@ -98,7 +99,9 @@ describe("SpecificationRewriter", () => {
 
       const mockConversation = ["issue spec", "user: test"];
 
-      const createCompletionSpy = jest.spyOn(ctx.adapters.openRouter.completions, "createCompletion").mockResolvedValue(MOCK_ISSUE_REWRITE_SPEC);
+      const createCompletionSpy = jest
+        .spyOn(ctx.adapters.openRouter.completions, "createCompletion")
+        .mockResolvedValue(JSON.stringify({ confidenceThreshold: 1, specification: "rewritten specification" }));
 
       const result = await specRewriter.rewriteSpec();
 
@@ -118,23 +121,29 @@ describe("SpecificationRewriter", () => {
       { created_at: "2021-01-01T00:00:00Z", body: "issue spec", user: { login: "test" } },
       {
         created_at: "2021-01-02T00:00:00Z",
-        body: "excluded (this comment will be skipped as its old and doesn't fit in remaining tokens)",
+        body: "Comment 1 (Excluded - too old/long for budget)",
         user: { login: "test" },
       },
-      { created_at: "2021-01-03T00:00:00Z", body: "included", user: { login: "test" } },
-      { created_at: "2021-01-04T00:00:00Z", body: "included", user: { login: "test" } },
-      { created_at: "2021-01-05T00:00:00Z", body: "included", user: { login: "test" } },
+      { created_at: "2021-01-03T00:00:00Z", body: "Comment 2 Included", user: { login: "test" } },
+      { created_at: "2021-01-04T00:00:00Z", body: "/rewrite", user: { login: "test" } },
+      { created_at: "2021-01-04T00:00:00Z", body: "Comment 2 Bot", user: { login: "test", type: "Bot" } },
+      { created_at: "2021-01-05T00:00:00Z", body: "Comment 3 Included", user: { login: "test" } },
     ];
-
     jest.spyOn(ctx.octokit, "paginate").mockResolvedValue(fakeComments);
+
+    const expectedConversation = [
+      "issue spec", // Original issue body is always first
+      "test: Comment 2 Included", // Formatted comment
+      "test: Comment 3 Included", // Formatted comment
+    ];
 
     const result = await specRewriter.fetchIssueConversation(ctx, {
       maxCompletionTokens: 1000,
       modelMaxTokenLimit: 4000,
-      tokensRemaining: 12,
+      tokensRemaining: expectedConversation.reduce((sum, comment) => sum + encode(comment).length, 0),
     });
 
-    expect(result).toEqual(["issue spec", "test: included", "test: included", "test: included"]);
+    expect(result).toEqual(expectedConversation);
   });
 });
 

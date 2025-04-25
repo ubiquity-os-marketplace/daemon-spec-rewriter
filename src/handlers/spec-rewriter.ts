@@ -18,7 +18,7 @@ export class SpecificationRewriter {
     this.context = context;
 
     // 5 minutes
-    this.cooldown = 1000 * 60 * 5;
+    this.cooldown = this.context.config.cooldown;
   }
 
   async performSpecRewrite(): Promise<CallbackResult> {
@@ -101,11 +101,22 @@ export class SpecificationRewriter {
     tokenLimits.tokensRemaining = 0.9 * tokenLimits.tokensRemaining;
     const githubConversation = await this.fetchIssueConversation(this.context, tokenLimits);
 
-    if (githubConversation.length == 1) {
-      throw this.context.logger.warn(`Skipping "/rewrite" as this doesn't have a conversation`);
+    if (githubConversation.length === 1) {
+      if (this._isIssueCommentEvent(this.context)) {
+        throw this.context.logger.warn(`Skipping "/rewrite" as this issue doesn't have a conversation`);
+      } else {
+        this.context.logger.warn(`Skipping "/rewrite" as this doesn't have a conversation`);
+        return { status: 204, reason: "Skipping spec rewrite as issue doesn't have a conversation" };
+      }
     }
+    const issueRewriteData = await completions.createCompletion(openRouterAiModel, githubConversation, UBIQUITY_OS_APP_NAME, tokenLimit.maxCompletionTokens);
+    const { specification, confidenceThreshold } = this.validateReviewOutput(issueRewriteData);
 
-    return await completions.createCompletion(openRouterAiModel, githubConversation, UBIQUITY_OS_APP_NAME, tokenLimit.maxCompletionTokens);
+    if (confidenceThreshold > 0.5) {
+      return specification;
+    } else {
+      return githubConversation[0];
+    }
   }
 
   async canUserRewrite() {
@@ -141,35 +152,33 @@ export class SpecificationRewriter {
     const issueBodyTokenCount = encode(issueBody).length;
     tokenLimits.tokensRemaining -= issueBodyTokenCount;
 
-    if (tokenLimits.tokensRemaining <= 0) {
+    if (tokenLimits.tokensRemaining < 0) {
       context.logger.info("Token limit reached after adding issue body, returning conversation as is");
       return conversation;
     }
 
     // Fetch all comments for the issue and remove issue body
-    const comments = await context.octokit
-      .paginate(context.octokit.rest.issues.listComments, {
-        owner,
-        repo,
-        issue_number: issueNumber,
-        per_page: 100,
-      })
-      .then((response) =>
-        response
-          .splice(1)
-          .filter((comment) => comment.user?.type !== "Bot")
-          .filter((comment) => comment.body && !/^\/\w+$/.test(comment.body.trim()))
-      );
+    const comments = await context.octokit.paginate(context.octokit.rest.issues.listComments, {
+      owner,
+      repo,
+      issue_number: issueNumber,
+      per_page: 100,
+    });
+
+    const filteredComments = comments
+      .splice(1)
+      .filter((comment) => comment.user?.type !== "Bot")
+      .filter((comment) => comment.body && !/^\/\w+$/.test(comment.body.trim()));
 
     // add the newest comments which fit in the context from oldest to newest
-    const sortedComments = comments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const sortedComments = filteredComments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     for (const comment of sortedComments) {
       const formattedComment = `${comment.user?.login}: ${comment.body}`;
       const commentTokenCount = encode(formattedComment).length;
 
       // Check if adding this comment would exceed token limit
-      if (tokenLimits.tokensRemaining - commentTokenCount <= 0) {
+      if (tokenLimits.tokensRemaining - commentTokenCount < 0) {
         context.logger.info("Token limit would be exceeded, stopping comment collection");
         break;
       }
@@ -181,6 +190,25 @@ export class SpecificationRewriter {
 
     return conversation;
   }
+
+  validateReviewOutput(reviewString: string) {
+    let rewriteOutput: { confidenceThreshold: number; specification: string };
+    try {
+      rewriteOutput = JSON.parse(reviewString);
+    } catch (err) {
+      throw this.context.logger.error("Couldn't parse JSON output; Aborting", { err });
+    }
+    if (typeof rewriteOutput.specification !== "string") {
+      throw this.context.logger.error("LLM failed to output review comment successfully");
+    }
+    const confidenceThreshold = rewriteOutput.confidenceThreshold;
+    if (Number.isNaN(Number(confidenceThreshold))) {
+      throw this.context.logger.error("LLM failed to output a confidence threshold successfully");
+    }
+
+    return { confidenceThreshold: Number(rewriteOutput.confidenceThreshold), specification: rewriteOutput.specification };
+  }
+
   private _isIssueCommentEvent(context: Context<"issue_comment.created" | "issues.labeled">): context is Context<"issue_comment.created"> {
     return "comment" in context.payload;
   }

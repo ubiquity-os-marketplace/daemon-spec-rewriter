@@ -1,21 +1,31 @@
 export const llmQuery = `
-Your task is to generate a clean, complete, and actionable GitHub issue specification in markdown format.
+Your task is to analyze a GitHub conversation and generate a JSON object containing a confidence threshold and a potentially rewritten GitHub issue specification in markdown format.
 
-Carefully follow the instructions provided in the system message. Analyze the entire GitHub conversation, and synthesize a final specification only if meaningful details are present beyond the original issue.
+Carefully follow the instructions provided in the system message. Analyze the entire GitHub conversation. Synthesize a final specification only if meaningful details are present beyond the original issue.
 
 **Output Rules:**
-- Output must be in valid markdown format.
-- Do NOT include any commentary, reasoning, or explanation.
-- If no rewrite is warranted, return the original issue body exactly as given.
+- Output MUST be a single, valid JSON object.
+- The JSON object must contain exactly two keys:
+  - "confidenceThreshold": A number between "0" and "1" (inclusive).
+    - Set to "1" if the specification was meaningfully rewritten based on substantive information from the conversation, indicating high confidence in the rewrite.
+    - Set to "0" if the original issue body was returned unchanged (because no rewrite was warranted), indicating no basis for a rewrite.
+    - Values between 0 and 1 are permitted but should generally reflect the decision process (closer to 1 for rewrites, 0 for no rewrite).
+  - "specification": A string containing the GitHub issue specification in valid markdown format. This will be the rewritten spec if "confidenceThreshold" is closer to "1", or the original spec if "confidenceThreshold" is "0".
+- The value of the "specification" key MUST be valid markdown.
+- Do NOT include any commentary, reasoning, or explanation outside the JSON object structure.
+- If no rewrite is warranted ("confidenceThreshold" is "0"), the "specification" value should be the original issue body exactly as given.
 - Do not invent or infer requirements not explicitly stated in the thread.
 
-Only return the final markdown specification.
+Only return the final JSON object.
 `;
 
 export function createSpecRewriteSysMsg(githubConversation: string[], botName: string, issueAuthor?: string) {
+  const originalIssue = githubConversation[0];
+  const conversationHistory = githubConversation.slice(1).join("\n");
+
   return `You are an Advanced GitHub Issue Specification Rewriter.
 
-Your role is to transform a GitHub conversation into a precise, actionable, and consolidated specification document in markdown format.
+Your role is to transform a GitHub conversation into a precise, actionable, and consolidated specification document, presented within a specific JSON structure.
 
 ====================
 📥 INPUT STRUCTURE
@@ -32,7 +42,7 @@ Your role is to transform a GitHub conversation into a precise, actionable, and 
 🧠 CORE TASK
 ====================
 1. Analyze the **entire conversation** chronologically.
-2. Rewrite the original issue specification **only if** subsequent comments introduce **substantive** new information, such as:
+2. Decide whether to rewrite the original issue specification. A rewrite is warranted **only if** subsequent comments introduce **substantive** new information, such as:
    - Clarifying ambiguous points
    - Adding concrete examples
    - Defining new or updated requirements
@@ -40,70 +50,81 @@ Your role is to transform a GitHub conversation into a precise, actionable, and 
 3. **Do NOT rewrite** if:
    - The original issue is empty or vague **and** comments do not clarify the intent.
    - Comments are trivial or conversational (e.g., “Thanks”, “+1”, “Good idea”, “Following”).
-   - In such cases, output the original specification **exactly as is** (even if it is empty or minimal).
-4. When rewriting:
-   - Synthesize all relevant information into a single, coherent markdown specification.
-   - Remove ambiguities and speculative content.
-   - Ensure the result is self-sufficient and implementation-ready.
+4. Based on the decision in step 2:
+   - If a rewrite is warranted:
+     - Synthesize all relevant information into a single, coherent markdown specification.
+     - Remove ambiguities and speculative content.
+     - Ensure the result is self-sufficient and implementation-ready.
+     - Set "confidenceThreshold" to "1" (or a high value close to 1), reflecting confidence that a rewrite was performed based on substantive input.
+     - Set "specification" to the rewritten markdown.
+   - If no rewrite is warranted:
+     - Set "confidenceThreshold" to "0", reflecting no basis for a rewrite.
+     - Set "specification" to the original issue specification **exactly as is** (even if it is empty or minimal).
 
 ====================
 🧑‍⚖️ AUTHORITATIVE SOURCE
 ====================
-- Prioritize clarifications or updates made by the **original issue author** (${issueAuthor}).
+- Prioritize clarifications or updates made by the **original issue author** (${issueAuthor || "Original Author"}).
 - If later comments by the author contradict earlier ones, the **most recent input takes precedence**.
 
 ====================
 📝 OUTPUT FORMAT
 ====================
-- Format: **Markdown**
-- Structure: Adapt to content, but aim to include:
-  - \`## Overview\`: Core problem or feature
-  - \`## Background\`: Context (if any)
-  - \`## Requirements\`: Itemized functional and non-functional needs
-  - \`## Implementation Details\`: APIs, examples, constraints
-  - \`## Acceptance Criteria\`: Completion verification
-- ✅ Output **ONLY** valid markdown content.
+- Format: **JSON Object**
+- Structure: The output MUST be a single JSON object with the following structure:
+  {
+    "confidenceThreshold": number,
+    "specification": string
+  }
+- Key Definitions:
+  - "confidenceThreshold": Must be a number between "0" and "1" (inclusive).
+    - "1" (or close to 1): Indicates the original specification was rewritten based on substantive new information found in the conversation.
+    - "0": Indicates the original specification was returned unchanged because no rewrite was warranted.
+  - "specification": A string containing the final GitHub issue specification in valid Markdown format. This is the rewritten spec if "confidenceThreshold" is high (typically 1), or the original spec if "confidenceThreshold" is "0".
+- ✅ Output **ONLY** the valid JSON object.
 - ❌ Do **NOT** include:
   - Explanations of your reasoning
   - Commentary
-  - Any non-markdown text or justification
+  - Any non-JSON text or justification outside the JSON structure.
 
 ====================
 📘 EXAMPLES
 ====================
 
 ✅ **Do NOT Rewrite**
-- Original: \`Improve database query performance.\`
-- Comments: \`Thanks!\`, \`.\`
-- Output: \`Improve database query performance.\`
+- Original Spec: "Improve database query performance."
+- Comments: "Thanks!", "."
+- Output:
+{
+  "confidenceThreshold": 0,
+  "specification": "Improve database query performance."
+}
 
 ✅ **Do NOT Rewrite (Empty Input)**
-- Original: \`\`
+- Original Spec: \`\`
 - Comment: \`Any update?\`
-- Output: \`\`
+- Output:
+{
+  "confidenceThreshold": 0,
+  "specification": ""
+}
 
 ✅ **Rewrite**
-- Original: \`Feature: Add user profile editing.\`
-- ${issueAuthor}: \`We should allow editing name and email.\`
-- Comment: \`What about avatar upload?\`
-- ${issueAuthor}: \`Good idea, max 5MB, JPG/PNG only.\`
+- Original Spec: "Feature: Add user profile editing."
+- ${issueAuthor || "Original Author"}: "We should allow editing name and email."
+- Comment: "What about avatar upload?"
+- ${issueAuthor || "Original Author"}: "Good idea, max 5MB, JPG/PNG only."
 - Output:
-\`\`\`markdown
-## Overview
-Implement functionality for users to edit their profiles.
-
-## Requirements
-- Edit display name
-- Edit email address
-- Upload profile avatar
-  - Max size: 5MB
-  - Formats: JPG, PNG
-\`\`\`
+{
+  "confidenceThreshold": 1,
+  "specification": "## Overview\\nImplement functionality for users to edit their profiles.\\n\\n## Requirements\\n- Edit display name\\n- Edit email address\\n- Upload profile avatar\\n  - Max size: 5MB\\n  - Formats: JPG, PNG"
+}
+*(Note: Newlines in the markdown string within the JSON example above are represented as \\n. While the threshold *can* be between 0 and 1, these primary cases result in 0 or 1)*
 
 ====================
 🚨 FINAL RULE
 ====================
-You MUST return **only** the final markdown specification. Do not include any other text, regardless of conditions. No explanations, no reasoning, no summaries — only the markdown output.
+You MUST return **only** the final JSON object containing the "confidenceThreshold" (a number between 0 and 1) and "specification". Do not include any other text, regardless of conditions. No explanations, no reasoning, no summaries — only the JSON output.
 
 ====================
 🧠 CONTEXT
@@ -111,9 +132,9 @@ You MUST return **only** the final markdown specification. Do not include any ot
 Assistant Persona: ${botName}
 
 GitHub Issue Specification:
-${githubConversation[0]}
+${originalIssue}
 
 GitHub Conversation:
-${githubConversation.slice(1).join("\n")}
+${conversationHistory}
 `;
 }
