@@ -38,7 +38,7 @@
       "eventWhiteList": {
         "examples": ["issues.labeled", "issues.assigned"],
         "description": "List of webhooks on which the plugin gets executed",
-        "default": ["issues.labaeled"],
+        "default": ["issues.labeled"],
         "type": "array",
         "items": {
           "type": "string"
