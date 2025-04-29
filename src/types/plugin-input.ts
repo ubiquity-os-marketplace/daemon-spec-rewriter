@@ -40,7 +40,7 @@ export const pluginSettingsSchema = T.Object(
     eventWhiteList: T.Array(T.String(), {
       examples: ["issues.labeled", "issues.assigned"],
       description: "List of webhooks on which the plugin gets executed",
-      default: ["issues.labaeled"],
+      default: ["issues.labeled"],
     }),
   },
   { default: {} }
