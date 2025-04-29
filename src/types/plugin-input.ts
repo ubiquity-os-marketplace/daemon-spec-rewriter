@@ -37,6 +37,11 @@ export const pluginSettingsSchema = T.Object(
       description: "The cooldown before between each issue's rewrite",
       examples: ["5 minutes", "3 minutes"],
     }),
+    eventWhiteList: T.Array(T.String(), {
+      examples: ["issues.labeled", "issues.assigned"],
+      description: "List of webhooks on which the plugin gets executed",
+      default: ["issues.labaeled"],
+    }),
   },
   { default: {} }
 );

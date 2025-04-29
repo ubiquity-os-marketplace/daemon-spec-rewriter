@@ -209,7 +209,7 @@ export class SpecificationRewriter {
     return { confidenceThreshold: Number(rewriteOutput.confidenceThreshold), specification: rewriteOutput.specification };
   }
 
-  private _isIssueCommentEvent(context: Context<"issue_comment.created" | "issues.labeled">): context is Context<"issue_comment.created"> {
+  private _isIssueCommentEvent(context: Context): context is Context<"issue_comment.created"> {
     return "comment" in context.payload;
   }
 }

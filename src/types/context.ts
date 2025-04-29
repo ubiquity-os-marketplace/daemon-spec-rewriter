@@ -4,7 +4,14 @@ import { Env } from "./env";
 import { createAdapters } from "../adapters";
 import { Command } from "./command";
 
-export type SupportedEvents = "issue_comment.created" | "issues.labeled";
+export type SupportedEvents =
+  | "issue_comment.created"
+  | "issues.labeled"
+  | "issues.assigned"
+  | "issues.unassigned"
+  | "issues.edited"
+  | "issues.reopened"
+  | "issues.unlabeled";
 
 export type Context<TEvents extends SupportedEvents = SupportedEvents> = PluginContext<PluginSettings, Env, Command, TEvents> & {
   adapters: ReturnType<typeof createAdapters>;

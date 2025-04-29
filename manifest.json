@@ -1,7 +1,7 @@
 {
   "name": "daemon-spec-rewriter",
   "description": "Rewrites the specification of an issue based on GitHub's issue conversation",
-  "ubiquity:listeners": ["issues.labeled"],
+  "ubiquity:listeners": ["issues.labeled", "issues.assigned", "issues.unassigned", "issues.edited", "issues.reopened", "issues.unlabeled"],
   "skipBotEvents": true,
   "commands": {
     "rewrite": {

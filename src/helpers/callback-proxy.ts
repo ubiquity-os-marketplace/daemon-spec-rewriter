@@ -20,5 +20,12 @@ export async function callCallbacks<T extends SupportedEvents>(context: Context<
     return { status: 204, reason: "skipped" };
   }
 
-  return (await Promise.all(callbacks[eventName].map((callback) => callback(context))))[0];
+  if (!context.config.eventWhiteList.includes(eventName)) {
+    context.logger.info(`Skipping as ${eventName} is not in event white list`);
+    return { status: 204, reason: "skipped" };
+  }
+
+  if (eventName === "issues.labeled") {
+    return timeLabelChange(context as Context<"issues.labeled">);
+  } else return new SpecificationRewriter(context).performSpecRewrite();
 }
