@@ -105,7 +105,7 @@ export class SpecificationRewriter {
       if (this._isIssueCommentEvent(this.context)) {
         throw this.context.logger.warn(`Skipping "/rewrite" as this issue doesn't have a conversation`);
       } else {
-        this.context.logger.warn(`Skipping "/rewrite" as this doesn't have a conversation`);
+        this.context.logger.warn(`Skipping rewrite as this doesn't have a conversation`);
         return { status: 204, reason: "Skipping spec rewrite as issue doesn't have a conversation" };
       }
     }
