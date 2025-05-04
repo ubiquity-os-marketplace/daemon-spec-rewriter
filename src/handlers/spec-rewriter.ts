@@ -109,8 +109,12 @@ export class SpecificationRewriter {
         return { status: 204, reason: "Skipping spec rewrite as issue doesn't have a conversation" };
       }
     }
-    const issueRewriteData = await completions.createCompletion(openRouterAiModel, githubConversation, UBIQUITY_OS_APP_NAME, tokenLimit.maxCompletionTokens);
-    const { specification, confidenceThreshold } = this.validateReviewOutput(issueRewriteData);
+    const { specification, confidenceThreshold } = await completions.createCompletion(
+      openRouterAiModel,
+      githubConversation,
+      UBIQUITY_OS_APP_NAME,
+      tokenLimit.maxCompletionTokens
+    );
 
     if (confidenceThreshold > 0.5) {
       return specification;
@@ -189,24 +193,6 @@ export class SpecificationRewriter {
     }
 
     return conversation;
-  }
-
-  validateReviewOutput(reviewString: string) {
-    let rewriteOutput: { confidenceThreshold: number; specification: string };
-    try {
-      rewriteOutput = JSON.parse(reviewString);
-    } catch (err) {
-      throw this.context.logger.error("Couldn't parse JSON output; Aborting", { err });
-    }
-    if (typeof rewriteOutput.specification !== "string") {
-      throw this.context.logger.error("LLM failed to output review comment successfully");
-    }
-    const confidenceThreshold = rewriteOutput.confidenceThreshold;
-    if (Number.isNaN(Number(confidenceThreshold))) {
-      throw this.context.logger.error("LLM failed to output a confidence threshold successfully");
-    }
-
-    return { confidenceThreshold: Number(rewriteOutput.confidenceThreshold), specification: rewriteOutput.specification };
   }
 
   private _isIssueCommentEvent(context: Context): context is Context<"issue_comment.created"> {

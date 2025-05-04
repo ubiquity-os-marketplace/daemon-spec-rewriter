@@ -11,6 +11,5 @@ export async function plugin(context: Context) {
     baseURL: config.openRouterBaseUrl,
   });
   context.adapters = createAdapters(openRouterClient, context);
-
   return await callCallbacks(context, context.eventName);
 }

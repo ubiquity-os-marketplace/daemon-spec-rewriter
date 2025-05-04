@@ -13,7 +13,7 @@ export class OpenRouterCompletion extends SuperOpenRouter {
     return await getOpenRouterModelTokenLimits(this.context.config.openRouterAiModel);
   }
 
-  async createCompletion(model: string, githubConversation: string[], botName: string, maxTokens: number): Promise<string> {
+  async createCompletion(model: string, githubConversation: string[], botName: string, maxTokens: number) {
     const sysMsg = createSpecRewriteSysMsg(githubConversation, botName, this.context.payload.issue.user?.login);
 
     this.context.logger.debug(`System message: ${sysMsg}`);
@@ -66,7 +66,25 @@ export class OpenRouterCompletion extends SuperOpenRouter {
     } else {
       this.context.logger.info(`LLM did not output usage statistics`);
     }
+    const output = this.validateReviewOutput(llmResponse.answer);
+    return output;
+  }
 
-    return llmResponse.answer;
+  validateReviewOutput(reviewString: string) {
+    let rewriteOutput: { confidenceThreshold: number; specification: string };
+    try {
+      rewriteOutput = JSON.parse(reviewString);
+    } catch (err) {
+      throw this.context.logger.error("Couldn't parse JSON output; Aborting", { err });
+    }
+    if (typeof rewriteOutput.specification !== "string") {
+      throw this.context.logger.error("LLM failed to output review comment successfully");
+    }
+    const confidenceThreshold = rewriteOutput.confidenceThreshold;
+    if (Number.isNaN(Number(confidenceThreshold))) {
+      throw this.context.logger.error("LLM failed to output a confidence threshold successfully");
+    }
+
+    return { confidenceThreshold: Number(rewriteOutput.confidenceThreshold), specification: rewriteOutput.specification };
   }
 }
