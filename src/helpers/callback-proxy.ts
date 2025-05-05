@@ -1,6 +1,7 @@
 import { SpecificationRewriter, timeLabelChange } from "../handlers/spec-rewriter";
 import { Context, SupportedEvents } from "../types";
-import { CallbackResult } from "../types/proxy";
+
+export type CallbackResult = { status: 200 | 201 | 204 | 404 | 500; reason: string; content?: string | Record<string, unknown> };
 
 export async function callCallbacks<T extends SupportedEvents>(context: Context<T>, eventName: T): Promise<CallbackResult> {
   if (!context.config.eventWhiteList.includes(eventName)) {

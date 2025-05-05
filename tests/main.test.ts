@@ -101,7 +101,7 @@ describe("SpecificationRewriter", () => {
 
       const createCompletionSpy = jest
         .spyOn(ctx.adapters.openRouter.completions, "createCompletion")
-        .mockResolvedValue(JSON.stringify({ confidenceThreshold: 1, specification: "rewritten specification" }));
+        .mockResolvedValue({ confidenceThreshold: 1, specification: "rewritten specification" });
 
       const result = await specRewriter.rewriteSpec();
 

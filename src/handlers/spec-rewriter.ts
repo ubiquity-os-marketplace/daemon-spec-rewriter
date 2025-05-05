@@ -1,5 +1,5 @@
 import { Context } from "../types";
-import { CallbackResult } from "../types/proxy";
+import { CallbackResult } from "../helpers/callback-proxy";
 import { createSpecRewriteSysMsg, llmQuery } from "./prompt";
 import { encode } from "gpt-tokenizer";
 import { RequestError } from "@octokit/request-error";
