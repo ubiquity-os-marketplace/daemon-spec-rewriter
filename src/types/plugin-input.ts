@@ -38,15 +38,15 @@ export const pluginSettingsSchema = T.Object(
       examples: ["5 minutes", "3 minutes"],
     }),
     eventWhiteList: T.Array(
-      T.Enum({
-        IssuesLabeled: "issues.labeled",
-        IssuesAssigned: "issues.assigned",
-        IssuesUnassigned: "issues.unassigned",
-        IssuesEdited: "issues.edited",
-        IssuesReopened: "issues.reopened",
-        IssuesUnlabeled: "issues.unlabeled",
-        IssueCommentCreated: "issue_comment.created",
-      }),
+      T.Union([
+        T.Literal("issues.labeled"),
+        T.Literal("issues.assigned"),
+        T.Literal("issues.unassigned"),
+        T.Literal("issues.edited"),
+        T.Literal("issues.reopened"),
+        T.Literal("issues.unlabeled"),
+        T.Literal("issue_comment.created"),
+      ]),
       {
         examples: ["issues.labeled", "issues.assigned"],
         description: "List of webhooks on which the plugin gets executed",

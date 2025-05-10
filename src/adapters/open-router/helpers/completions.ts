@@ -47,8 +47,9 @@ export class OpenRouterCompletion extends SuperOpenRouter {
         if (!answer) {
           throw this.context.logger.error("Unexpected response format: Expected text block");
         }
+        const output = this.validateReviewOutput(answer);
 
-        return { res, answer };
+        return { res, output };
       },
       {
         maxRetries: this.context.config.maxRetryAttempts,
@@ -66,8 +67,7 @@ export class OpenRouterCompletion extends SuperOpenRouter {
     } else {
       this.context.logger.info(`LLM did not output usage statistics`);
     }
-    const output = this.validateReviewOutput(llmResponse.answer);
-    return output;
+    return llmResponse.output;
   }
 
   validateReviewOutput(reviewString: string) {

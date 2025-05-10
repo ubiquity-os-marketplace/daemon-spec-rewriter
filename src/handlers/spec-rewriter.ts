@@ -22,7 +22,10 @@ export class SpecificationRewriter {
   }
 
   async performSpecRewrite(): Promise<CallbackResult> {
-    if (this._isIssueCommentEvent(this.context) && !this.context.payload.comment.body.trim().startsWith("/rewrite")) {
+    if (
+      (this._isIssueCommentEvent(this.context) && !this.context.payload.comment.body.trim().startsWith("/rewrite")) ||
+      this.context.command?.name !== "rewrite"
+    ) {
       this.context.logger.warn("Command is not /rewrite, Aborting!");
       return { status: 204, reason: "Command is not /rewrite" };
     }
