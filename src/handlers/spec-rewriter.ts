@@ -193,26 +193,11 @@ export class SpecificationRewriter {
     }
 
     const conversation: string[] = [];
-    const issueAuthor = issue.user.login;
-    const issueAssignees = new Set(issue.assignees.map((assignee) => assignee?.login).filter(Boolean));
-
     for (const comment of sortedComments) {
       if (!comment.user) continue;
 
       const userLogin = comment.user.login;
-      const userRoles = [...(issueAuthor === userLogin ? ["issue-author"] : []), ...(issueAssignees.has(userLogin) ? ["assignee"] : [])];
-
-      try {
-        const { status } = await this.context.octokit.rest.repos.checkCollaborator({
-          owner: this.context.payload.repository.owner.login,
-          repo: this.context.payload.repository.name,
-          username: userLogin,
-        });
-        userRoles.push(status === 204 ? "collaborator" : "contributor");
-      } catch (error) {
-        this.context.logger.warn(`User is not a collaborator: ${error}`);
-        userRoles.push("contributor");
-      }
+      const userRoles = await this.getUserRoles(userLogin);
 
       const formattedComment = `${userLogin} (${userRoles.join(",")}): ${comment.body}`;
       const commentTokenCount = encode(formattedComment).length;
@@ -227,6 +212,29 @@ export class SpecificationRewriter {
     }
 
     return conversation;
+  }
+
+  async getUserRoles(username: string) {
+    const issue = this.context.payload.issue;
+    if (!issue.user) {
+      throw this.context.logger.error("Issue author not found, Aborting");
+    }
+    const issueAuthor = issue.user.login;
+    const issueAssignees = new Set(issue.assignees.map((assignee) => assignee?.login).filter(Boolean));
+
+    const userRoles = [...(issueAuthor === username ? ["issue-author"] : []), ...(issueAssignees.has(username) ? ["assignee"] : [])];
+    try {
+      const { status } = await this.context.octokit.rest.repos.checkCollaborator({
+        owner: this.context.payload.repository.owner.login,
+        repo: this.context.payload.repository.name,
+        username,
+      });
+      userRoles.push(status === 204 ? "collaborator" : "contributor");
+    } catch (error) {
+      this.context.logger.warn(`User is not a collaborator: ${error}`);
+      userRoles.push("contributor");
+    }
+    return userRoles;
   }
 
   private _isIssueCommentEvent(context: Context): context is Context<"issue_comment.created"> {
