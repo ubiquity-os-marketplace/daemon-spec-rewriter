@@ -3,6 +3,7 @@ import { CallbackResult } from "../helpers/callback-proxy";
 import { createSpecRewriteSysMsg, llmQuery } from "./prompt";
 import { encode } from "gpt-tokenizer";
 import { RequestError } from "@octokit/request-error";
+import { Comment } from "../types/github";
 
 export type TokenLimits = {
   modelMaxTokenLimit: number;
@@ -22,12 +23,11 @@ export class SpecificationRewriter {
   }
 
   async performSpecRewrite(): Promise<CallbackResult> {
-    if (
-      (this._isIssueCommentEvent(this.context) && !this.context.payload.comment.body.trim().startsWith("/rewrite")) ||
-      this.context.command?.name !== "rewrite"
-    ) {
-      this.context.logger.warn("Command is not /rewrite, Aborting!");
-      return { status: 204, reason: "Command is not /rewrite" };
+    if (this._isIssueCommentEvent(this.context)) {
+      if (this.context.payload.comment.body.trim().startsWith("/rewrite") === !!this.context.command) {
+        this.context.logger.warn("Command is not /rewrite, Aborting!");
+        return { status: 204, reason: "Command is not /rewrite" };
+      }
     }
 
     if (!(await this.canUserRewrite())) {
@@ -144,15 +144,16 @@ export class SpecificationRewriter {
   }
 
   async fetchIssueConversation(context: Context, tokenLimits: TokenLimits): Promise<string[]> {
+    const issue = context.payload.issue;
+    if (!issue.body) {
+      throw context.logger.error("Issue body not found, Aborting");
+    }
+
     const conversation: string[] = [];
     const owner = context.payload.repository.owner.login;
     const repo = context.payload.repository.name;
     const issueNumber = context.payload.issue.number;
-    const issue = context.payload.issue;
 
-    if (!issue.body) {
-      throw context.logger.error("Issue body not found, Aborting");
-    }
     const issueBody = issue.body.replace(/^\s*<!-- daemon-spec-rewriter[\s\S]*?-->\s*$/gm, "");
     conversation.push(issueBody);
 
@@ -179,18 +180,48 @@ export class SpecificationRewriter {
 
     // add the newest comments which fit in the context from oldest to newest
     const sortedComments = filteredComments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const selectedComments = await this.selectComments(sortedComments, tokenLimits);
+
+    conversation.push(...selectedComments);
+    return conversation;
+  }
+
+  async selectComments(sortedComments: Comment[], tokenLimits: TokenLimits) {
+    const issue = this.context.payload.issue;
+    if (!issue.user) {
+      throw this.context.logger.error("Issue author not found, Aborting");
+    }
+
+    const conversation: string[] = [];
+    const issueAuthor = issue.user.login;
+    const issueAssignees = new Set(issue.assignees.map((assignee) => assignee?.login).filter(Boolean));
 
     for (const comment of sortedComments) {
-      const formattedComment = `${comment.user?.login}: ${comment.body}`;
+      if (!comment.user) continue;
+
+      const userLogin = comment.user.login;
+      const userRoles = [...(issueAuthor === userLogin ? ["issue-author"] : []), ...(issueAssignees.has(userLogin) ? ["assignee"] : [])];
+
+      try {
+        const { status } = await this.context.octokit.rest.repos.checkCollaborator({
+          owner: this.context.payload.repository.owner.login,
+          repo: this.context.payload.repository.name,
+          username: userLogin,
+        });
+        userRoles.push(status === 204 ? "collaborator" : "contributor");
+      } catch (error) {
+        this.context.logger.warn(`User is not a collaborator: ${error}`);
+        userRoles.push("contributor");
+      }
+
+      const formattedComment = `${userLogin} (${userRoles.join(",")}): ${comment.body}`;
       const commentTokenCount = encode(formattedComment).length;
 
-      // Check if adding this comment would exceed token limit
-      if (tokenLimits.tokensRemaining - commentTokenCount < 0) {
-        context.logger.info("Token limit would be exceeded, stopping comment collection");
+      if (tokenLimits.tokensRemaining < commentTokenCount) {
+        this.context.logger.info("Token limit would be exceeded, stopping comment collection");
         break;
       }
 
-      // Add comment at index 1 pushing existing comment forward and update token counts
       conversation.splice(1, 0, formattedComment);
       tokenLimits.tokensRemaining -= commentTokenCount;
     }
