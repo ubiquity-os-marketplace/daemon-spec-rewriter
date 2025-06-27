@@ -23,11 +23,12 @@ export class SpecificationRewriter {
   }
 
   async performSpecRewrite(): Promise<CallbackResult> {
-    if (this._isIssueCommentEvent(this.context)) {
-      if (this.context.payload.comment.body.trim().startsWith("/rewrite") === !!this.context.command) {
-        this.context.logger.warn("Command is not /rewrite, Aborting!");
-        return { status: 204, reason: "Command is not /rewrite" };
-      }
+    const isCommandRewrite = this.context.command?.name === "rewrite";
+    const isCommentRewrite = this._isIssueCommentEvent(this.context) && this.context.payload.comment.body.trim().startsWith("/rewrite");
+
+    if (!isCommandRewrite && !isCommentRewrite) {
+      this.context.logger.warn("Command is not /rewrite, Aborting!");
+      return { status: 204, reason: "Command is not /rewrite" };
     }
 
     if (!(await this.canUserRewrite())) {
