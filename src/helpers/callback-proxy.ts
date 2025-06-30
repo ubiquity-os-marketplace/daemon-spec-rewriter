@@ -8,8 +8,9 @@ export async function callCallbacks<T extends SupportedEvents>(context: Context<
     context.logger.info(`Skipping as ${eventName} is not in event white list`);
     return { status: 204, reason: "skipped" };
   }
-
-  if (eventName === "issues.labeled") {
+  if (eventName === "issues.labeled" || eventName === "issues.unlabeled") {
     return timeLabelChange(context as Context<"issues.labeled">);
-  } else return new SpecificationRewriter(context).performSpecRewrite();
+  } else {
+    return new SpecificationRewriter(context).performSpecRewrite();
+  }
 }

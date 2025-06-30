@@ -26,13 +26,13 @@ export class SpecificationRewriter {
     const isCommandRewrite = this.context.command?.name === "rewrite";
     const isCommentRewrite = this._isIssueCommentEvent(this.context) && this.context.payload.comment.body.trim().startsWith("/rewrite");
 
-    if (!isCommandRewrite && !isCommentRewrite) {
+    if (!isCommandRewrite && !isCommentRewrite && this._isIssueCommentEvent(this.context)) {
       this.context.logger.warn("Command is not /rewrite, Aborting!");
       return { status: 204, reason: "Command is not /rewrite" };
     }
 
     if (!(await this.canUserRewrite())) {
-      throw this.context.logger.warn("User does not have sufficient permissions to rewrite spec");
+      throw this.context.logger.warn("You do not have sufficient permissions to rewrite the specification.");
     }
 
     const issueBody = this.context.payload.issue.body;
@@ -243,7 +243,7 @@ export class SpecificationRewriter {
   }
 }
 
-export async function timeLabelChange(context: Context<"issues.labeled">): Promise<CallbackResult> {
+export async function timeLabelChange(context: Context<"issues.labeled" | "issues.unlabeled">): Promise<CallbackResult> {
   if (context.payload.label?.name.toLowerCase().startsWith("time")) {
     const specificationRewriter = new SpecificationRewriter(context);
     return specificationRewriter.performSpecRewrite();

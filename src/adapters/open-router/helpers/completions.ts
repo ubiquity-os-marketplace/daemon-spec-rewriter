@@ -1,14 +1,9 @@
 import { createSpecRewriteSysMsg, llmQuery } from "../../../handlers/prompt";
-import { Context } from "../../../types";
 import { SuperOpenRouter } from "./open-router";
 import OpenAI from "openai";
 import { getOpenRouterModelTokenLimits, OpenRouterError, retry } from "@ubiquity-os/plugin-sdk/helpers";
 
 export class OpenRouterCompletion extends SuperOpenRouter {
-  constructor(client: OpenAI, context: Context) {
-    super(client, context);
-  }
-
   async getModelTokenLimits(): Promise<{ contextLength: number; maxCompletionTokens: number } | null> {
     return await getOpenRouterModelTokenLimits(this.context.config.openRouterAiModel);
   }
@@ -72,19 +67,33 @@ export class OpenRouterCompletion extends SuperOpenRouter {
 
   validateReviewOutput(reviewString: string) {
     let rewriteOutput: { confidenceThreshold: number; specification: string };
-    try {
-      rewriteOutput = JSON.parse(reviewString);
-    } catch (err) {
-      throw this.context.logger.error("Couldn't parse JSON output; Aborting", { err });
+
+    function stripCodeFences(text: string): string {
+      return text.replace(/```(?:\w+)?\s*([\s\S]*?)\s*```/, "$1").trim();
     }
+
+    try {
+      const cleanedReview = stripCodeFences(reviewString);
+      rewriteOutput = JSON.parse(cleanedReview);
+    } catch (err) {
+      throw this.context.logger.error("Couldn't parse JSON output; Aborting", {
+        err,
+        reviewString,
+      });
+    }
+
     if (typeof rewriteOutput.specification !== "string") {
       throw this.context.logger.error("LLM failed to output review comment successfully");
     }
+
     const confidenceThreshold = rewriteOutput.confidenceThreshold;
     if (Number.isNaN(Number(confidenceThreshold))) {
       throw this.context.logger.error("LLM failed to output a confidence threshold successfully");
     }
 
-    return { confidenceThreshold: Number(rewriteOutput.confidenceThreshold), specification: rewriteOutput.specification };
+    return {
+      confidenceThreshold: Number(confidenceThreshold),
+      specification: rewriteOutput.specification,
+    };
   }
 }
