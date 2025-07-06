@@ -130,12 +130,15 @@ export class SpecificationRewriter {
   async canUserRewrite() {
     if (this.context.payload.sender.type === "Bot") return true;
     try {
-      const checkRewrite = await this.context.octokit.rest.repos.checkCollaborator({
-        owner: this.context.payload.repository.owner.login,
-        repo: this.context.payload.repository.name,
-        username: this.context.payload.sender.login,
-      });
-      return checkRewrite.status === 204;
+      const list = (
+        await this.context.octokit.rest.repos.listCollaborators({
+          owner: this.context.payload.repository.owner.login,
+          repo: this.context.payload.repository.name,
+          affiliation: "direct",
+        })
+      ).data;
+
+      return list.find((user) => user.login === this.context.payload.sender.login);
     } catch (error) {
       if (error instanceof RequestError && error.status === 404) {
         return false;
