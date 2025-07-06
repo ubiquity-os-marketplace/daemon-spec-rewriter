@@ -19,17 +19,17 @@ plugins:
   - uses:
       - plugin: ubiquity-os-marketplace/daemon-spec-rewriter
         with:
-          openRouterAiModel: ""         # Optional - defaults to "anthropic/claude-3.7-sonnet"
-          openRouterBaseUrl: ""         # Optional - defaults to OpenRouter's API endpoint
-          maxRetryAttempts: 5           # Optional - defaults to 5
-          eventWhiteList:               # Optional - list of GitHub webhook events the plugin responds to
+          openRouterAiModel: "" # Optional - defaults to "anthropic/claude-3.7-sonnet"
+          openRouterBaseUrl: "" # Optional - defaults to OpenRouter's API endpoint
+          maxRetryAttempts: 5 # Optional - defaults to 5
+          eventWhiteList: # Optional - list of GitHub webhook events the plugin responds to
             - issues.assigned
             - issues.unassigned
             - issues.edited
             - issues.reopened
             - issues.unlabeled
-            - issues.labeled            # Default
-            - issue_comment.created     # Default
+            - issues.labeled # Default
+            - issue_comment.created # Default
 ```
 
 `.dev.vars` (for local testing):
