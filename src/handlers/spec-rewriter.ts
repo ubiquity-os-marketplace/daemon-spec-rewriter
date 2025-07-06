@@ -27,8 +27,7 @@ export class SpecificationRewriter {
     const isCommentRewrite = this._isIssueCommentEvent(this.context) && this.context.payload.comment.body.trim().startsWith("/rewrite");
 
     if (!isCommandRewrite && !isCommentRewrite && this._isIssueCommentEvent(this.context)) {
-      this.context.logger.warn("Command is not /rewrite, Aborting!");
-      return { status: 204, reason: "Command is not /rewrite" };
+      return { status: 204, reason: this.context.logger.warn("Command is not /rewrite, Aborting!").logMessage.raw };
     }
 
     if (!(await this.canUserRewrite())) {
@@ -109,8 +108,7 @@ export class SpecificationRewriter {
       if (this._isIssueCommentEvent(this.context)) {
         throw this.context.logger.warn(`Skipping "/rewrite" as this issue doesn't have a conversation`);
       } else {
-        this.context.logger.warn(`Skipping rewrite as this doesn't have a conversation`);
-        return { status: 204, reason: "Skipping spec rewrite as issue doesn't have a conversation" };
+        return { status: 204, reason: this.context.logger.warn(`Skipping rewrite as this doesn't have a conversation`).logMessage.raw };
       }
     }
     const { specification, confidenceThreshold } = await completions.createCompletion(

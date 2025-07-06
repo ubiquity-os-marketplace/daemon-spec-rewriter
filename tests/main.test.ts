@@ -54,7 +54,7 @@ describe("SpecificationRewriter", () => {
 
       await expect(specRewriter.performSpecRewrite()).rejects.toMatchObject({
         logMessage: {
-          raw: "User does not have sufficient permissions to rewrite spec",
+          raw: "You do not have sufficient permissions to rewrite the specification.",
           level: "warn",
           type: "warn",
         },
