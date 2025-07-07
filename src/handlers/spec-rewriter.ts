@@ -2,7 +2,6 @@ import { Context } from "../types";
 import { CallbackResult } from "../helpers/callback-proxy";
 import { createSpecRewriteSysMsg, llmQuery } from "./prompt";
 import { encode } from "gpt-tokenizer";
-import { RequestError } from "@octokit/request-error";
 import { Comment } from "../types/github";
 
 export type TokenLimits = {
@@ -126,22 +125,40 @@ export class SpecificationRewriter {
   }
 
   async canUserRewrite() {
-    if (this.context.payload.sender.type === "Bot") return true;
+    const { sender, repository } = this.context.payload;
+    const { login: repoOwner } = repository.owner;
+    const { login: senderLogin, type: senderType } = sender;
+
+    if (senderType === "Bot") return true;
+
+    const octokit = this.context.octokit;
+
     try {
-      const list = (
-        await this.context.octokit.rest.repos.listCollaborators({
-          owner: this.context.payload.repository.owner.login,
-          repo: this.context.payload.repository.name,
+      const collaborators = (
+        await octokit.rest.repos.listCollaborators({
+          owner: repoOwner,
+          repo: repository.name,
           affiliation: "direct",
         })
       ).data;
 
-      return list.find((user) => user.login === this.context.payload.sender.login);
-    } catch (error) {
-      if (error instanceof RequestError && error.status === 404) {
-        return false;
+      const isCollaborator = collaborators.some((user) => user.login === senderLogin);
+      if (isCollaborator) return true;
+
+      if (repository.owner.type === "Organization") {
+        const membership = await octokit.rest.orgs.getMembershipForUser({
+          org: repoOwner,
+          username: senderLogin,
+        });
+
+        const isAdmin = membership.data.role === "admin";
+        if (isAdmin) return true;
       }
-      throw error;
+
+      return false;
+    } catch (e) {
+      this.context.logger.error(`Couldnt fetch user permissions, Error: ${e}`);
+      return false;
     }
   }
 
