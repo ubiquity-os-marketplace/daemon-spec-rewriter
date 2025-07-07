@@ -28,7 +28,6 @@
     "open-source"
   ],
   "dependencies": {
-    "@octokit/request-error": "^6.1.8",
     "@sinclair/typebox": "0.34.3",
     "@ubiquity-os/plugin-sdk": "^3.1.8",
     "@ubiquity-os/ubiquity-os-logger": "^1.4.0",

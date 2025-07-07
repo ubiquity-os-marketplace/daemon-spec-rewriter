@@ -157,7 +157,7 @@ export class SpecificationRewriter {
 
       return false;
     } catch (e) {
-      this.context.logger.error(`Couldnt fetch user permissions, Error: ${e}`);
+      this.context.logger.error(`Couldn't fetch user permissions, Error: ${e}`);
       return false;
     }
   }
