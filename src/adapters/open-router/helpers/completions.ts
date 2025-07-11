@@ -66,15 +66,15 @@ export class OpenRouterCompletion extends SuperOpenRouter {
   }
 
   validateReviewOutput(reviewString: string) {
+    let cleaned = reviewString.replace(/```(?:json|javascript|js)?\s*([\s\S]*?)\s*```/gim, "$1").trim();
+    cleaned = cleaned.replace(/`+/g, "");
+    cleaned = cleaned.replace(/,(\s*[}\]])/g, "$1");
+    cleaned = cleaned.trim();
+
     let rewriteOutput: { confidenceThreshold: number; specification: string };
 
-    function stripCodeFences(text: string): string {
-      return text.replace(/```(?:\w+)?\s*([\s\S]*?)\s*```/, "$1").trim();
-    }
-
     try {
-      const cleanedReview = stripCodeFences(reviewString);
-      rewriteOutput = JSON.parse(cleanedReview);
+      rewriteOutput = JSON.parse(cleaned);
     } catch (err) {
       throw this.context.logger.error("Couldn't parse JSON output; Aborting", {
         err,

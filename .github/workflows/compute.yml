@@ -35,6 +35,7 @@ jobs:
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       UBIQUITY_OS_APP_NAME: ${{ secrets.UBIQUITY_OS_APP_NAME }}
       PLUGIN_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
 
     steps:
       - name: Checkout
