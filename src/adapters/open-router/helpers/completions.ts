@@ -66,10 +66,20 @@ export class OpenRouterCompletion extends SuperOpenRouter {
   }
 
   validateReviewOutput(reviewString: string) {
-    let cleaned = reviewString.replace(/```(?:json|javascript|js)?\s*([\s\S]*?)\s*```/gim, "$1").trim();
-    cleaned = cleaned.replace(/`+/g, "");
+    const match = /```(?:json|javascript|js)?\s*(\{[\s\S]*\})\s*```/im.exec(reviewString);
+    const textToParse = match ? match[1] : reviewString;
+
+    const firstBrace = textToParse.indexOf("{");
+    const lastBrace = textToParse.lastIndexOf("}");
+
+    if (firstBrace === -1 || lastBrace === -1) {
+      throw this.context.logger.error("Couldn't parse JSON output; valid JSON object not found.", {
+        reviewString,
+      });
+    }
+
+    let cleaned = textToParse.substring(firstBrace, lastBrace + 1);
     cleaned = cleaned.replace(/,(\s*[}\]])/g, "$1");
-    cleaned = cleaned.trim();
 
     let rewriteOutput: { confidenceThreshold: number; specification: string };
 
