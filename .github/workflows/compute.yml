@@ -19,6 +19,7 @@ on:
         description: "Signature sent from the Kernel"
       command:
         description: "Command"
+        required: false
 
 concurrency:
   group: ${{ fromJSON(inputs.eventPayload).issue.url }}
