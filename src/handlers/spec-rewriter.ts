@@ -17,7 +17,6 @@ export class SpecificationRewriter {
   constructor(context: Context) {
     this.context = context;
 
-    // 5 minutes
     this.cooldown = this.context.config.cooldown;
   }
 
