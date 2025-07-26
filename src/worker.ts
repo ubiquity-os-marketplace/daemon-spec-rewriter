@@ -8,6 +8,7 @@ import manifest from "../manifest.json";
 import { plugin } from "./plugin";
 import { Manifest } from "@ubiquity-os/plugin-sdk/manifest";
 import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
+import { Command } from "./types/command";
 
 export default {
   async fetch(request: Request, env: Env, executionCtx?: ExecutionContext) {
