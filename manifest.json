@@ -18,7 +18,7 @@
     "type": "object",
     "properties": {
       "openRouterAiModel": {
-        "default": "anthropic/claude-3.7-sonnet",
+        "default": "deepseek/deepseek-r1-0528",
         "type": "string"
       },
       "openRouterBaseUrl": {
