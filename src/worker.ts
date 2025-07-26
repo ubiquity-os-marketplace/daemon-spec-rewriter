@@ -11,7 +11,7 @@ import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 
 export default {
   async fetch(request: Request, env: Env, executionCtx?: ExecutionContext) {
-    return createPlugin<PluginSettings, Env, null, SupportedEvents>(
+    return createPlugin<PluginSettings, Env, Command, SupportedEvents>(
       (context) => {
         return plugin({
           ...context,
