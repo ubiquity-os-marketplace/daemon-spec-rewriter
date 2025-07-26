@@ -29,7 +29,7 @@ function thresholdType(options?: StringOptions) {
 
 export const pluginSettingsSchema = T.Object(
   {
-    openRouterAiModel: T.String({ default: "anthropic/claude-3.7-sonnet" }),
+    openRouterAiModel: T.String({ default: "deepseek/deepseek-r1-0528" }),
     openRouterBaseUrl: T.String({ default: "https://openrouter.ai/api/v1" }),
     maxRetryAttempts: T.Number({ default: 5 }),
     cooldown: thresholdType({

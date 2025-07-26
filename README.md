@@ -19,7 +19,7 @@ plugins:
   - uses:
       - plugin: ubiquity-os-marketplace/daemon-spec-rewriter
         with:
-          openRouterAiModel: "" # Optional - defaults to "anthropic/claude-3.7-sonnet"
+          openRouterAiModel: "" # Optional - defaults to "deepseek/deepseek-r1-0528"
           openRouterBaseUrl: "" # Optional - defaults to OpenRouter's API endpoint
           maxRetryAttempts: 5 # Optional - defaults to 5
           eventWhiteList: # Optional - list of GitHub webhook events the plugin responds to

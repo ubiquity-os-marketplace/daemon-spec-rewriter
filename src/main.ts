@@ -5,8 +5,9 @@ import { Env, envSchema } from "./types/env";
 import { PluginSettings, pluginSettingsSchema } from "./types/plugin-input";
 import { plugin } from "./plugin";
 import { LogLevel } from "@ubiquity-os/ubiquity-os-logger";
+import { Command } from "./types/command";
 
-createActionsPlugin<PluginSettings, Env, null, SupportedEvents>(
+createActionsPlugin<PluginSettings, Env, Command, SupportedEvents>(
   (context) => {
     return plugin({
       ...context,
