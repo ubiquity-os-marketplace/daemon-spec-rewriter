@@ -1,4 +1,4 @@
-name: "the name of the plugin"
+name: "LLM Spec Rewriter"
 
 on:
   workflow_dispatch:
@@ -16,31 +16,30 @@ on:
       ref:
         description: "Ref"
       signature:
-        description: "The kernel signature"
+        description: "Signature sent from the Kernel"
       command:
-        description: "Command from the Kernel"
+        description: "Command"
         required: false
+
+concurrency:
+  group: ${{ fromJSON(inputs.eventPayload).issue.url }}
+  cancel-in-progress: false
 
 jobs:
   compute:
-    name: "plugin name"
+    name: "LLM Spec Rewriter"
     runs-on: ubuntu-latest
     permissions: write-all
     environment: ${{ (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')) && 'main' || 'development' }}
     env:
-      PLUGIN_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       KERNEL_PUBLIC_KEY: ${{ secrets.KERNEL_PUBLIC_KEY }}
-      LOG_LEVEL: ${{ secrets.LOG_LEVEL || 'info' }}
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      UBIQUITY_OS_APP_NAME: ${{ secrets.UBIQUITY_OS_APP_NAME }}
+      PLUGIN_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
 
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: execute directive
-        run: bun ./dist/index.js
-        id: plugin-name
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run compute reviews
+        uses: ./

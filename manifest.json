@@ -1,23 +1,77 @@
 {
-  "name": "ts-template",
-  "description": "ts-template for UbiquityOS plugins.",
-  "ubiquity:listeners": ["issue_comment.created", "pull_request_review_comment.created"],
+  "name": "daemon-spec-rewriter",
+  "description": "Rewrites the specification of an issue based on GitHub's issue conversation",
+  "ubiquity:listeners": ["issues.labeled", "issues.assigned", "issues.unassigned", "issues.edited", "issues.reopened", "issues.unlabeled"],
+  "skipBotEvents": true,
   "commands": {
-    "hello": {
-      "ubiquity:example": "/hello argument",
-      "description": "Hello command with an argument."
+    "rewrite": {
+      "ubiquity:example": "/rewrite",
+      "description": "Rewrites the specification of an issue based on GitHub's issue conversation",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
     }
   },
   "configuration": {
     "default": {},
     "type": "object",
     "properties": {
-      "configurableResponse": {
-        "default": "Hello, world!",
+      "openRouterAiModel": {
+        "default": "deepseek/deepseek-r1-0528",
         "type": "string"
       },
-      "customStringsUrl": {
+      "openRouterBaseUrl": {
+        "default": "https://openrouter.ai/api/v1",
         "type": "string"
+      },
+      "maxRetryAttempts": {
+        "default": 5,
+        "type": "number"
+      },
+      "cooldown": {
+        "default": "5 minutes",
+        "description": "The cooldown before between each issue's rewrite",
+        "examples": ["5 minutes", "3 minutes"],
+        "type": "string"
+      },
+      "eventWhiteList": {
+        "examples": ["issues.labeled", "issues.assigned"],
+        "description": "List of webhooks on which the plugin gets executed",
+        "default": ["issues.labeled", "issue_comment.created"],
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "const": "issues.labeled",
+              "type": "string"
+            },
+            {
+              "const": "issues.assigned",
+              "type": "string"
+            },
+            {
+              "const": "issues.unassigned",
+              "type": "string"
+            },
+            {
+              "const": "issues.edited",
+              "type": "string"
+            },
+            {
+              "const": "issues.reopened",
+              "type": "string"
+            },
+            {
+              "const": "issues.unlabeled",
+              "type": "string"
+            },
+            {
+              "const": "issue_comment.created",
+              "type": "string"
+            }
+          ]
+        }
       }
     }
   },

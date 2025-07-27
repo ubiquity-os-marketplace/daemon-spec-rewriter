@@ -1,5 +1,5 @@
-import { StaticDecode, Type as T } from "@sinclair/typebox";
-import "dotenv/config";
+import { Type as T } from "@sinclair/typebox";
+import { StaticDecode } from "@sinclair/typebox";
 import { LOG_LEVEL } from "@ubiquity-os/ubiquity-os-logger";
 
 /**
@@ -9,9 +9,14 @@ import { LOG_LEVEL } from "@ubiquity-os/ubiquity-os-logger";
  * taken from either `dev.vars` or repository secrets.
  * They are used with `process.env` but are type-safe.
  */
-export const envSchema = T.Object({
-  LOG_LEVEL: T.Optional(T.Enum(LOG_LEVEL, { default: LOG_LEVEL.INFO })),
-  KERNEL_PUBLIC_KEY: T.Optional(T.String()),
-});
+export const envSchema = T.Object(
+  {
+    OPENROUTER_API_KEY: T.String(),
+    UBIQUITY_OS_APP_NAME: T.String({ default: "UbiquityOS" }),
+    KERNEL_PUBLIC_KEY: T.Optional(T.String()),
+    LOG_LEVEL: T.Enum(LOG_LEVEL, { default: LOG_LEVEL.INFO }),
+  },
+  { default: {} }
+);
 
 export type Env = StaticDecode<typeof envSchema>;
