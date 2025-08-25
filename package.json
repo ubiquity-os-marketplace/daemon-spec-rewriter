@@ -29,7 +29,7 @@
   ],
   "dependencies": {
     "@sinclair/typebox": "0.34.3",
-    "@ubiquity-os/plugin-sdk": "^3.1.8",
+    "@ubiquity-os/plugin-sdk": "3.2.2",
     "@ubiquity-os/ubiquity-os-logger": "^1.4.0",
     "dotenv": "^16.6.1",
     "gpt-tokenizer": "^2.9.0",
