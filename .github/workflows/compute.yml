@@ -21,10 +21,6 @@ on:
         description: "Command"
         required: false
 
-#concurrency:
-#  group: ${{ fromJSON(inputs.eventPayload).issue.url }}
-#  cancel-in-progress: false
-
 jobs:
   decode-payload:
     name: Decode Payload
@@ -48,7 +44,7 @@ jobs:
   compute:
     needs: decode-payload
     concurrency:
-      group: ${{ fromJSON(steps.decode-payload.outputs.eventPayload).issue.url }}
+      group: ${{ fromJSON(needs.decode-payload.outputs.eventPayload).issue.url }}
       cancel-in-progress: false
     name: "LLM Spec Rewriter"
     runs-on: ubuntu-latest
