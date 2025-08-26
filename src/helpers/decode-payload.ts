@@ -8,5 +8,6 @@ createActionsPlugin(
   {
     logLevel: (process.env.LOG_LEVEL as LogLevel) ?? LOG_LEVEL.INFO,
     kernelPublicKey: process.env.KERNEL_PUBLIC_KEY,
+    returnDataToKernel: false,
   }
 ).catch(console.error);
