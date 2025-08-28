@@ -1,7 +1,7 @@
 import type { KnipConfig } from "knip";
 
 const config: KnipConfig = {
-  entry: ["src/main.ts", "src/helpers/decode-payload.ts"],
+  entry: ["src/main.ts"],
   project: ["src/**"],
   ignore: ["src/types/config.ts", "**/__mocks__/**", "**/__fixtures__/**"],
   ignoreExportsUsedInFile: true,
