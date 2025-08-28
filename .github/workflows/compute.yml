@@ -35,11 +35,16 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
-      - name: Decode Payload
-        id: decode-payload
-        run: |
-          bun install --frozen-lockfile
-          bun run ./src/helpers/decode-payload.ts
+      - uses: ubiquity-whilefoo/compress-action@action
+        with:
+          data: ${{ inputs.eventPayload }}
+          mode: 'decompress'
+
+#      - name: Decode Payload
+#        id: decode-payload
+#        run: |
+#          bun install --frozen-lockfile
+#          bun run ./src/helpers/decode-payload.ts
 
   compute:
     needs: decode-payload
