@@ -33,11 +33,10 @@ jobs:
       PLUGIN_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
     steps:
-#      - uses: ubiquity-os/compress-action@main
-      - uses: ubiquity-whilefoo/compress-action@action
+      - uses: ubiquity-os/compress-action@main
         with:
           data: ${{ inputs.eventPayload }}
-          mode: 'decompress'
+          mode: "decompress"
 
   compute:
     needs: decode-payload
