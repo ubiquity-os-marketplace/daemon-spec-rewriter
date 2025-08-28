@@ -33,8 +33,8 @@ jobs:
       PLUGIN_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
     steps:
-      - uses: actions/checkout@v5
-      - uses: ubiquity-os/compress-action@main
+#      - uses: ubiquity-os/compress-action@main
+      - uses: ubiquity-whilefoo/compress-action@action
         with:
           data: ${{ inputs.eventPayload }}
           mode: 'decompress'
