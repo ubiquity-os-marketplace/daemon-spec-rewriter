@@ -34,17 +34,10 @@ jobs:
       LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
     steps:
       - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
-      - uses: ubiquity-whilefoo/compress-action@action
+      - uses: ubiquity-os/compress-action@main
         with:
           data: ${{ inputs.eventPayload }}
           mode: 'decompress'
-
-#      - name: Decode Payload
-#        id: decode-payload
-#        run: |
-#          bun install --frozen-lockfile
-#          bun run ./src/helpers/decode-payload.ts
 
   compute:
     needs: decode-payload
