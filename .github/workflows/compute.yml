@@ -29,9 +29,11 @@ jobs:
       eventPayload: ${{ steps.decode-payload.outputs.result }}
     steps:
       - uses: ubiquity-os/compress-action@main
+        id: decode-payload
         with:
           data: ${{ inputs.eventPayload }}
           mode: "decompress"
+      - run: echo "${{ steps.decode-payload.outputs.result }}"
 
   compute:
     needs: decode-payload
