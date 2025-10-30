@@ -33,7 +33,6 @@ jobs:
         with:
           data: ${{ inputs.eventPayload }}
           mode: "decompress"
-      - run: echo ${{ steps.decode-payload.outputs.result }}
 
   compute:
     needs: decode-payload
