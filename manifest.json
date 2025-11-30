@@ -74,5 +74,6 @@
         }
       }
     }
-  }
+  },
+  "short_name": "ubiquity-os-marketplace/daemon-spec-rewriter@development"
 }
