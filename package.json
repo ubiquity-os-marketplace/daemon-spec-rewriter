@@ -28,8 +28,8 @@
     "open-source"
   ],
   "dependencies": {
-    "@sinclair/typebox": "0.34.3",
-    "@ubiquity-os/plugin-sdk": "3.7.0",
+    "@sinclair/typebox": "0.34.41",
+    "@ubiquity-os/plugin-sdk": "^3.8.1",
     "@ubiquity-os/ubiquity-os-logger": "^1.4.0",
     "dotenv": "^16.6.1",
     "gpt-tokenizer": "^2.9.0",
@@ -84,5 +84,6 @@
     "extends": [
       "@commitlint/config-conventional"
     ]
-  }
+  },
+  "packageManager": "bun@1"
 }

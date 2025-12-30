@@ -178,7 +178,7 @@ export class SpecificationRewriter {
     const completionTokens = llmResponse.res?.usage?.completion_tokens;
 
     if (inputTokens && completionTokens) {
-      this.context.logger.info(`Number of tokens tokens used: ${inputTokens + completionTokens}`, { inputTokens, completionTokens });
+      this.context.logger.info(`Number of tokens used: ${inputTokens + completionTokens}`, { inputTokens, completionTokens });
     } else {
       this.context.logger.info(`LLM did not output usage statistics`);
     }
