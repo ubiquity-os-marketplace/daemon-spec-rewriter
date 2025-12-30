@@ -37,7 +37,7 @@ describe("SpecificationRewriter", () => {
     specRewriter = new SpecificationRewriter(ctx);
 
     server.use(
-      http.post("https://ai.ubq.fi/v1/chat/completions", () =>
+      http.post("https://ai-ubq-fi.deno.dev/v1/chat/completions", () =>
         HttpResponse.json({
           choices: [
             {
