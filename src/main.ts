@@ -1,6 +1,5 @@
 import { createActionsPlugin } from "@ubiquity-os/plugin-sdk";
 import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
-import { createAdapters } from "./adapters";
 import { plugin } from "./plugin";
 import { Command } from "./types/command";
 import { SupportedEvents } from "./types/context";
@@ -11,7 +10,6 @@ createActionsPlugin<PluginSettings, Env, Command, SupportedEvents>(
   (context) => {
     return plugin({
       ...context,
-      adapters: {} as ReturnType<typeof createAdapters>,
     });
   },
   {
