@@ -1,4 +1,4 @@
-import { createPlugin } from "@ubiquity-os/plugin-sdk";
+import { createPlugin, type Options } from "@ubiquity-os/plugin-sdk";
 import type { ExecutionContext } from "hono";
 import { SupportedEvents } from "./types/context";
 import { Env, envSchema } from "./types/env";
@@ -12,9 +12,9 @@ import { Command } from "./types/command";
 export default {
   async fetch(request: Request, env: Env, executionCtx?: ExecutionContext) {
     return createPlugin<PluginSettings, Env, Command, SupportedEvents>((context) => plugin(context), manifest as Manifest, {
-      envSchema: envSchema,
+      envSchema: envSchema as unknown as Options["envSchema"],
       postCommentOnError: true,
-      settingsSchema: pluginSettingsSchema,
+      settingsSchema: pluginSettingsSchema as unknown as Options["settingsSchema"],
       logLevel: (env.LOG_LEVEL as LogLevel) || LOG_LEVEL.INFO,
       kernelPublicKey: env.KERNEL_PUBLIC_KEY,
       bypassSignatureVerification: process.env.NODE_ENV === "local",
