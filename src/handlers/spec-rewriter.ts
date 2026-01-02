@@ -61,7 +61,7 @@ export class SpecificationRewriter {
     const isCommentRewrite = this._isIssueCommentEvent(this.context) && this.context.payload.comment.body.trim().startsWith("/rewrite");
 
     if (!isCommandRewrite && !isCommentRewrite && this._isIssueCommentEvent(this.context)) {
-      return { status: 204, reason: this.context.logger.warn("Command is not /rewrite, Aborting!").logMessage.raw };
+      return { status: 204, reason: this.context.logger.debug("Command is not /rewrite, Aborting!").logMessage.raw };
     }
 
     if (!(await this.canUserRewrite())) {
@@ -127,13 +127,13 @@ export class SpecificationRewriter {
 
     if (githubConversation.length === 1) {
       if (this._isIssueCommentEvent(this.context)) {
-        throw this.context.logger.warn(`Skipping "/rewrite" as this issue doesn't have a conversation`);
+        throw this.context.logger.debug(`Skipping "/rewrite" as this issue doesn't have a conversation`);
       } else {
-        return { status: 204, reason: this.context.logger.warn(`Skipping rewrite as this doesn't have a conversation`).logMessage.raw };
+        return { status: 204, reason: this.context.logger.debug(`Skipping rewrite as this doesn't have a conversation`).logMessage.raw };
       }
     }
     const sysMsg = createSpecRewriteSysMsg(githubConversation, UBIQUITY_OS_APP_NAME, this.context.payload.issue.user?.login);
-    this.context.logger.debug(`System message: ${sysMsg}`);
+    this.context.logger.info(`System message: ${sysMsg}`);
 
     const llmResponse = await retry(
       async () => {
@@ -169,7 +169,7 @@ export class SpecificationRewriter {
       {
         maxRetries: this.context.config.maxRetryAttempts,
         onError: (err) => {
-          this.context.logger.warn(`LLM Error, retrying...`, { err });
+          this.context.logger.error(`LLM Error, retrying...`, { err });
         },
       }
     );
@@ -180,7 +180,7 @@ export class SpecificationRewriter {
     if (inputTokens && completionTokens) {
       this.context.logger.info(`Number of tokens used: ${inputTokens + completionTokens}`, { inputTokens, completionTokens });
     } else {
-      this.context.logger.info(`LLM did not output usage statistics`);
+      this.context.logger.debug(`LLM did not output usage statistics`);
     }
 
     const { specification, confidenceThreshold } = llmResponse.output;
@@ -275,7 +275,7 @@ export class SpecificationRewriter {
   async fetchIssueConversation(context: Context, tokenLimits: TokenLimits): Promise<string[]> {
     const issue = context.payload.issue;
     if (!issue.body) {
-      throw context.logger.error("Issue body not found, Aborting");
+      throw context.logger.warn("Issue body not found, Aborting");
     }
 
     const conversation: string[] = [];
@@ -290,7 +290,7 @@ export class SpecificationRewriter {
     tokenLimits.tokensRemaining -= issueBodyTokenCount;
 
     if (tokenLimits.tokensRemaining < 0) {
-      context.logger.info("Token limit reached after adding issue body, returning conversation as is");
+      context.logger.debug("Token limit reached after adding issue body, returning conversation as is");
       return conversation;
     }
 
@@ -318,7 +318,7 @@ export class SpecificationRewriter {
   async selectComments(sortedComments: Comment[], tokenLimits: TokenLimits) {
     const issue = this.context.payload.issue;
     if (!issue.user) {
-      throw this.context.logger.error("Issue author not found, Aborting");
+      throw this.context.logger.warn("Issue author not found, Aborting");
     }
 
     const conversation: string[] = [];
@@ -332,7 +332,7 @@ export class SpecificationRewriter {
       const commentTokenCount = encode(formattedComment).length;
 
       if (tokenLimits.tokensRemaining < commentTokenCount) {
-        this.context.logger.info("Token limit would be exceeded, stopping comment collection");
+        this.context.logger.debug("Token limit would be exceeded, stopping comment collection");
         break;
       }
 
@@ -346,7 +346,7 @@ export class SpecificationRewriter {
   async getUserRoles(username: string) {
     const issue = this.context.payload.issue;
     if (!issue.user) {
-      throw this.context.logger.error("Issue author not found, Aborting");
+      throw this.context.logger.warn("Issue author not found, Aborting");
     }
     const issueAuthor = issue.user.login;
     const issueAssignees = new Set(issue.assignees.map((assignee) => assignee?.login).filter(Boolean));

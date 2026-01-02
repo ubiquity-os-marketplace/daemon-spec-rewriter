@@ -5,7 +5,7 @@ export type CallbackResult = { status: 200 | 201 | 204 | 404 | 500; reason: stri
 
 export async function callCallbacks<T extends SupportedEvents>(context: Context<T>, eventName: T): Promise<CallbackResult> {
   if (!context.config.eventWhiteList.includes(eventName)) {
-    context.logger.info(`Skipping as ${eventName} is not in event white list`);
+    context.logger.debug(`Skipping as ${eventName} is not in event white list`);
     return { status: 204, reason: "skipped" };
   }
   if (eventName === "issues.labeled" || eventName === "issues.unlabeled") {
