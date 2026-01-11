@@ -17,14 +17,6 @@
     "default": {},
     "type": "object",
     "properties": {
-      "openRouterAiModel": {
-        "default": "deepseek/deepseek-r1-0528",
-        "type": "string"
-      },
-      "openRouterBaseUrl": {
-        "default": "https://openrouter.ai/api/v1",
-        "type": "string"
-      },
       "maxRetryAttempts": {
         "default": 5,
         "type": "number"
@@ -75,5 +67,5 @@
       }
     }
   },
-  "short_name": "ubiquity-os-marketplace/daemon-spec-rewriter@development"
+  "short_name": "ubiquity-os-marketplace/daemon-spec-rewriter@codex/concurrent-20251222"
 }

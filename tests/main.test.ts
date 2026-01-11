@@ -10,6 +10,7 @@ import { Octokit, RestEndpointMethodTypes } from "@octokit/rest";
 import { Logs } from "@ubiquity-os/ubiquity-os-logger";
 import { SpecificationRewriter } from "../src/handlers/spec-rewriter";
 import { encode } from "gpt-tokenizer";
+import { http, HttpResponse } from "msw";
 
 // Mock constants
 const MOCK_ISSUE_REWRITE_SPEC = "rewritten specification";
@@ -34,6 +35,20 @@ describe("SpecificationRewriter", () => {
     await setupTests();
     ctx = createContext();
     specRewriter = new SpecificationRewriter(ctx);
+
+    server.use(
+      http.post("https://ai-ubq-fi.deno.dev/v1/chat/completions", () =>
+        HttpResponse.json({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({ confidenceThreshold: 1, specification: MOCK_ISSUE_REWRITE_SPEC }),
+              },
+            },
+          ],
+        })
+      )
+    );
 
     const fakeComments = [
       { created_at: "2021-01-01T00:00:00Z", body: "issue spec", user: { login: "test" } },
@@ -94,24 +109,7 @@ describe("SpecificationRewriter", () => {
 
   describe("rewriteSpec", () => {
     it("should create completion using github conversation", async () => {
-      jest
-        .spyOn(ctx.adapters.openRouter.completions, "getModelTokenLimits")
-        .mockReturnValue(Promise.resolve({ contextLength: 50000, maxCompletionTokens: 5000 }));
-
-      const mockConversation = ["issue spec", "user (contributor): test"];
-
-      const createCompletionSpy = jest
-        .spyOn(ctx.adapters.openRouter.completions, "createCompletion")
-        .mockResolvedValue({ confidenceThreshold: 1, specification: "rewritten specification" });
-
       const result = await specRewriter.rewriteSpec();
-
-      expect(createCompletionSpy).toHaveBeenCalledWith(
-        ctx.config.openRouterAiModel,
-        mockConversation,
-        ctx.env.UBIQUITY_OS_APP_NAME,
-        (await ctx.adapters.openRouter.completions.getModelTokenLimits())?.maxCompletionTokens
-      );
 
       expect(result).toBe(MOCK_ISSUE_REWRITE_SPEC);
     });
@@ -176,23 +174,16 @@ function createContext() {
     },
     owner: "ubiquity",
     repo: "test-repo",
+    authToken: "ghs_test",
+    ubiquityKernelToken: "kernel-token",
     logger: logger,
     config: {
-      openRouterAiModel: "test-model",
+      maxRetryAttempts: 1,
+      cooldown: 0,
+      eventWhiteList: ["issue_comment.created"],
     },
     env: {
       UBIQUITY_OS_APP_NAME: "UbiquityOS",
-      OPENROUTER_API_KEY: "test",
-    },
-    adapters: {
-      openRouter: {
-        completions: {
-          getModelTokenLimits: () => {
-            return { contextLength: 50000, maxCompletionTokens: 5000 };
-          },
-          createCompletion: async (): Promise<string> => MOCK_ISSUE_REWRITE_SPEC,
-        },
-      },
     },
     octokit: new Octokit(),
     eventName: "issue_comment.created" as SupportedEvents,
