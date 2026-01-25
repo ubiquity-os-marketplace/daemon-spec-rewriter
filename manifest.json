@@ -67,5 +67,5 @@
       }
     }
   },
-  "short_name": "ubiquity-os-marketplace/daemon-spec-rewriter@development"
+  "short_name": "ubiquity-os-marketplace/daemon-spec-rewriter@fix/retry"
 }
