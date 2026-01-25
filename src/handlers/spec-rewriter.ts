@@ -3,12 +3,48 @@ import { CallbackResult } from "../helpers/callback-proxy";
 import { createSpecRewriteSysMsg, llmQuery } from "./prompt";
 import { encode } from "gpt-tokenizer";
 import { Comment } from "../types/github";
+import { callLlm } from "@ubiquity-os/plugin-sdk";
+import type { ChatCompletion } from "openai/resources/chat/completions";
+
+function isAsyncIterable<T>(value: unknown): value is AsyncIterable<T> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Symbol.asyncIterator in value &&
+    typeof (value as { [Symbol.asyncIterator]?: unknown })[Symbol.asyncIterator] === "function"
+  );
+}
 
 export type TokenLimits = {
   modelMaxTokenLimit: number;
   maxCompletionTokens: number;
   tokensRemaining: number;
 };
+
+const DEFAULT_MODEL_MAX_TOKEN_LIMIT = 16_000;
+const DEFAULT_MAX_COMPLETION_TOKENS = 2_000;
+
+async function retry<T>(
+  fn: () => Promise<T>,
+  options: Readonly<{
+    maxRetries: number;
+    onError?: (error: unknown) => void;
+  }>
+): Promise<T> {
+  let attempt = 0;
+  let lastError: unknown;
+  while (attempt <= options.maxRetries) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      options.onError?.(error);
+      attempt += 1;
+      if (attempt > options.maxRetries) break;
+    }
+  }
+  throw lastError;
+}
 
 export class SpecificationRewriter {
   protected readonly context: Context;
@@ -73,27 +109,14 @@ export class SpecificationRewriter {
   > {
     const {
       env: { UBIQUITY_OS_APP_NAME },
-      config: { openRouterAiModel },
-      adapters: {
-        openRouter: { completions },
-      },
     } = this.context;
 
     const sysPromptTokenCount = encode(createSpecRewriteSysMsg([], UBIQUITY_OS_APP_NAME, "")).length;
     const queryTokenCount = encode(llmQuery).length;
-    const tokenLimit = await this.context.adapters.openRouter.completions.getModelTokenLimits();
-
-    if (!tokenLimit) {
-      throw this.context.logger.error(`The token limits for configured model ${this.context.config.openRouterAiModel} were not found`);
-    }
-
-    if (tokenLimit.contextLength === tokenLimit.maxCompletionTokens) {
-      tokenLimit.maxCompletionTokens = tokenLimit.contextLength / 10;
-    }
 
     const tokenLimits: TokenLimits = {
-      modelMaxTokenLimit: tokenLimit.contextLength,
-      maxCompletionTokens: tokenLimit.maxCompletionTokens,
+      modelMaxTokenLimit: DEFAULT_MODEL_MAX_TOKEN_LIMIT,
+      maxCompletionTokens: DEFAULT_MAX_COMPLETION_TOKENS,
       tokensRemaining: 0,
     };
     // what we start out with to include files
@@ -109,18 +132,106 @@ export class SpecificationRewriter {
         return { status: 204, reason: this.context.logger.warn(`Skipping rewrite as this doesn't have a conversation`).logMessage.raw };
       }
     }
-    const { specification, confidenceThreshold } = await completions.createCompletion(
-      openRouterAiModel,
-      githubConversation,
-      UBIQUITY_OS_APP_NAME,
-      tokenLimit.maxCompletionTokens
+    const sysMsg = createSpecRewriteSysMsg(githubConversation, UBIQUITY_OS_APP_NAME, this.context.payload.issue.user?.login);
+    this.context.logger.debug(`System message: ${sysMsg}`);
+
+    const llmResponse = await retry(
+      async () => {
+        const res = await callLlm(
+          {
+            messages: [
+              { role: "system", content: sysMsg },
+              { role: "user", content: llmQuery },
+            ],
+            max_completion_tokens: tokenLimits.maxCompletionTokens,
+            temperature: 0,
+          },
+          this.context
+        );
+
+        if (isAsyncIterable(res)) {
+          throw this.context.logger.error("Unexpected streaming response from LLM");
+        }
+
+        const completion: ChatCompletion = res;
+        if (!completion.choices?.length) {
+          throw this.context.logger.error("Unexpected no response from LLM: No choices returned.");
+        }
+
+        const answer = completion.choices[0]?.message?.content;
+        if (typeof answer !== "string" || !answer.trim()) {
+          throw this.context.logger.error("Unexpected response format: Expected text block");
+        }
+
+        const output = this.validateReviewOutput(answer);
+        return { res: completion, output };
+      },
+      {
+        maxRetries: this.context.config.maxRetryAttempts,
+        onError: (err) => {
+          this.context.logger.warn(`LLM Error, retrying...`, { err });
+        },
+      }
     );
+
+    const inputTokens = llmResponse.res?.usage?.prompt_tokens;
+    const completionTokens = llmResponse.res?.usage?.completion_tokens;
+
+    if (inputTokens && completionTokens) {
+      this.context.logger.info(`Number of tokens used: ${inputTokens + completionTokens}`, { inputTokens, completionTokens });
+    } else {
+      this.context.logger.info(`LLM did not output usage statistics`);
+    }
+
+    const { specification, confidenceThreshold } = llmResponse.output;
 
     if (confidenceThreshold > 0.5) {
       return specification;
     } else {
       return githubConversation[0];
     }
+  }
+
+  validateReviewOutput(reviewString: string) {
+    const match = /```(?:json|javascript|js)?\s*(\{[\s\S]*\})\s*```/im.exec(reviewString);
+    const textToParse = match ? match[1] : reviewString;
+
+    const firstBrace = textToParse.indexOf("{");
+    const lastBrace = textToParse.lastIndexOf("}");
+
+    if (firstBrace === -1 || lastBrace === -1) {
+      throw this.context.logger.error("Couldn't parse JSON output; valid JSON object not found.", {
+        reviewString,
+      });
+    }
+
+    let cleaned = textToParse.substring(firstBrace, lastBrace + 1);
+    cleaned = cleaned.replace(/,(\s*[}\]])/g, "$1");
+
+    let rewriteOutput: { confidenceThreshold: number; specification: string };
+
+    try {
+      rewriteOutput = JSON.parse(cleaned);
+    } catch (err) {
+      throw this.context.logger.error("Couldn't parse JSON output; Aborting", {
+        err,
+        reviewString,
+      });
+    }
+
+    if (typeof rewriteOutput.specification !== "string") {
+      throw this.context.logger.error("LLM failed to output review comment successfully");
+    }
+
+    const confidenceThreshold = rewriteOutput.confidenceThreshold;
+    if (Number.isNaN(Number(confidenceThreshold))) {
+      throw this.context.logger.error("LLM failed to output a confidence threshold successfully");
+    }
+
+    return {
+      confidenceThreshold: Number(confidenceThreshold),
+      specification: rewriteOutput.specification,
+    };
   }
 
   async canUserRewrite() {
@@ -139,7 +250,7 @@ export class SpecificationRewriter {
           repo: repository.name,
           affiliation: "direct",
         })
-      ).data;
+      ).data as Array<{ login?: string }>;
 
       const isCollaborator = collaborators.some((user) => user.login === senderLogin);
       if (isCollaborator) return true;
@@ -184,12 +295,12 @@ export class SpecificationRewriter {
     }
 
     // Fetch all comments for the issue and remove issue body
-    const comments = await context.octokit.paginate(context.octokit.rest.issues.listComments, {
+    const comments = (await context.octokit.paginate(context.octokit.rest.issues.listComments, {
       owner,
       repo,
       issue_number: issueNumber,
       per_page: 100,
-    });
+    })) as Comment[];
 
     const filteredComments = comments
       .splice(1)
