@@ -1,5 +1,6 @@
 import { callLlm } from "@ubiquity-os/plugin-sdk";
 import { retry } from "@ubiquity-os/plugin-sdk/helpers";
+import { checkLlmRetryableState } from "@ubiquity-os/plugin-sdk/llm";
 import { encode } from "gpt-tokenizer";
 import type { ChatCompletion } from "openai/resources/chat/completions";
 import { CallbackResult } from "../helpers/callback-proxy";
@@ -147,6 +148,7 @@ export class SpecificationRewriter {
       },
       {
         maxRetries: this.context.config.maxRetryAttempts,
+        isErrorRetryable: checkLlmRetryableState,
         onError: (err) => {
           this.context.logger.warn(`LLM Error, retrying...`, { err });
         },
