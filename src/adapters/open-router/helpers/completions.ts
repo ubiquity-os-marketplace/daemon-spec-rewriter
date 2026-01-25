@@ -1,7 +1,7 @@
 import { createSpecRewriteSysMsg, llmQuery } from "../../../handlers/prompt";
 import { SuperOpenRouter } from "./open-router";
 import OpenAI from "openai";
-import { getOpenRouterModelTokenLimits, OpenRouterError, retry } from "@ubiquity-os/plugin-sdk/helpers";
+import { checkLlmRetryableState, getOpenRouterModelTokenLimits, OpenRouterError, retry } from "@ubiquity-os/plugin-sdk/helpers";
 
 export class OpenRouterCompletion extends SuperOpenRouter {
   async getModelTokenLimits(): Promise<{ contextLength: number; maxCompletionTokens: number } | null> {
@@ -51,6 +51,7 @@ export class OpenRouterCompletion extends SuperOpenRouter {
         onError: (err) => {
           this.context.logger.warn(`LLM Error, retrying...`, { err });
         },
+        isErrorRetryable: checkLlmRetryableState,
       }
     );
 
