@@ -1,10 +1,11 @@
-import { Context } from "../types";
-import { CallbackResult } from "../helpers/callback-proxy";
-import { createSpecRewriteSysMsg, llmQuery } from "./prompt";
-import { encode } from "gpt-tokenizer";
-import { Comment } from "../types/github";
 import { callLlm } from "@ubiquity-os/plugin-sdk";
+import { retry } from "@ubiquity-os/plugin-sdk/helpers";
+import { encode } from "gpt-tokenizer";
 import type { ChatCompletion } from "openai/resources/chat/completions";
+import { CallbackResult } from "../helpers/callback-proxy";
+import { Context } from "../types";
+import { Comment } from "../types/github";
+import { createSpecRewriteSysMsg, llmQuery } from "./prompt";
 
 function isAsyncIterable<T>(value: unknown): value is AsyncIterable<T> {
   return (
@@ -23,28 +24,6 @@ export type TokenLimits = {
 
 const DEFAULT_MODEL_MAX_TOKEN_LIMIT = 16_000;
 const DEFAULT_MAX_COMPLETION_TOKENS = 2_000;
-
-async function retry<T>(
-  fn: () => Promise<T>,
-  options: Readonly<{
-    maxRetries: number;
-    onError?: (error: unknown) => void;
-  }>
-): Promise<T> {
-  let attempt = 0;
-  let lastError: unknown;
-  while (attempt <= options.maxRetries) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error;
-      options.onError?.(error);
-      attempt += 1;
-      if (attempt > options.maxRetries) break;
-    }
-  }
-  throw lastError;
-}
 
 export class SpecificationRewriter {
   protected readonly context: Context;
