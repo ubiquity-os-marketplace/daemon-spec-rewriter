@@ -1,6 +1,5 @@
 import { callLlm } from "@ubiquity-os/plugin-sdk";
-import { retry } from "@ubiquity-os/plugin-sdk/helpers";
-import { checkLlmRetryableState } from "@ubiquity-os/plugin-sdk/llm";
+import { retry, checkLlmRetryableState } from "@ubiquity-os/plugin-sdk/helpers";
 import { encode } from "gpt-tokenizer";
 import type { ChatCompletion } from "openai/resources/chat/completions";
 import { CallbackResult } from "../helpers/callback-proxy";
