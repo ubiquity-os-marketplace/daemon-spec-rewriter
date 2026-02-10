@@ -17,6 +17,7 @@ jobs:
           sourcemap: true
           pluginEntry: "${{ github.workspace }}/src/main.ts"
           excludeSupportedEvents: "issue_comment.created"
+          skipBotEvents: true
         env:
           APP_ID: ${{ secrets.APP_ID }}
           APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
