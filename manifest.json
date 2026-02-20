@@ -1,6 +1,6 @@
 {
   "name": "@ubiquity-os/daemon-spec-rewriter",
-  "short_name": "ubiquity-os-marketplace/daemon-spec-rewriter@development",
+  "short_name": "ubiquity-os-marketplace/daemon-spec-rewriter@main",
   "description": "Rewrites the specification of an issue based on the GitHub conversation",
   "commands": {
     "rewrite": {
