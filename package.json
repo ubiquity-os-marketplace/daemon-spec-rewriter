@@ -18,7 +18,7 @@
     "prepare": "husky install",
     "test": "cross-env NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" jest --setupFiles dotenv/config --coverage",
     "worker": "wrangler dev --env dev --port 4000",
-    "prepare:manifest": "curl -fsSL https://raw.githubusercontent.com/ubiquity-os/action-deploy-plugin/main/.github/scripts/update-manifest.js | node - ."
+    "prepare:manifest": "bun x @ubiquity-os/plugin-manifest-tool ."
   },
   "type": "module",
   "keywords": [
