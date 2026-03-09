@@ -9,7 +9,6 @@
     }
   },
   "ubiquity:listeners": [
-    "issue_comment.created",
     "issues.labeled",
     "issues.assigned",
     "issues.unassigned",
