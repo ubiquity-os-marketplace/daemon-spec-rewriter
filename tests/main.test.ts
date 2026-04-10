@@ -1,6 +1,6 @@
 import { db } from "./__mocks__/db";
 import { server } from "./__mocks__/node";
-import usersGet from "./__mocks__/users-get.json";
+import usersGet from "./__mocks__/users-get.json" with { type: "json" };
 import { describe, beforeAll, beforeEach, afterAll, afterEach, it, jest, expect } from "@jest/globals";
 import { Context, SupportedEvents } from "../src/types";
 import { drop } from "@mswjs/data";
