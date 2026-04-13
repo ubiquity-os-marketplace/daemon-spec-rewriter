@@ -24,7 +24,11 @@ export default {
     if (new URL(request.url).pathname === "/manifest.json") {
       return Response.json(runtimeManifest);
     }
-    const environment = env<Env>(request as never);
+    const environment = env<Env>(request as never) as Env & {
+      KERNEL_PUBLIC_KEY?: string;
+      LOG_LEVEL?: string;
+      NODE_ENV?: string;
+    };
     return createPlugin<PluginSettings, Env, Command, SupportedEvents>((context) => plugin(context), runtimeManifest, {
       envSchema: envSchema as unknown as Options["envSchema"],
       postCommentOnError: true,
